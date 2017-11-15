@@ -72,7 +72,6 @@ lazy val microservice = (project in file("."))
     Resolver.jcenterRepo
   ))
 
-def unitFilter(name: String): Boolean = name startsWith "unit"
 
 def oneForkedJvmPerTest(tests: Seq[TestDefinition]) =
   tests map {
