@@ -16,16 +16,22 @@
 
 package uk.gov.hmrc.apidocumentation.controllers
 
+import javax.inject.Inject
+
+import play.api.mvc._
+import uk.gov.hmrc.apidocumentation.models.DocumentationResource
+import uk.gov.hmrc.apidocumentation.services.DocumentationService
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
-import play.api.mvc._
-import scala.concurrent.Future
 
-object MicroserviceHelloWorld extends MicroserviceHelloWorld
+class DocumentationController @Inject() (service: DocumentationService) extends BaseController {
 
-trait MicroserviceHelloWorld extends BaseController {
-
-	def hello() = Action.async { implicit request =>
-		Future.successful(Ok("Hello world"))
-	}
+  def fetchApiDocumentationResource(serviceName: String, version: String, resource: String) = Action.async { implicit request =>
+    service.fetchApiDocumentationResource(serviceName, version, resource) map { resource =>
+      resource match {
+        case DocumentationResource(body, Some(contentType)) => Ok(body).withHeaders(CONTENT_TYPE -> contentType)
+        case DocumentationResource(body, _) => Ok(body)
+      }
+    }
+  }
 }
