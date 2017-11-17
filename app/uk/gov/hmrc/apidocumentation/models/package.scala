@@ -16,22 +16,9 @@
 
 package uk.gov.hmrc.apidocumentation
 
-import play.api.http.Status
-import play.api.test.FakeRequest
-import uk.gov.hmrc.apidocumentation.controllers.MicroserviceHelloWorld
-import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
+import play.api.libs.json.Json
 
-class MicroserviceHelloWorldControllerSpec extends UnitSpec with WithFakeApplication{
-
-  val fakeRequest = FakeRequest("GET", "/")
-
-
-  "GET /" should {
-    "return 200" in {
-      val result = MicroserviceHelloWorld.hello()(fakeRequest)
-      status(result) shouldBe Status.OK
-    }
-  }
-
+package object models {
+  implicit val formatServiceDetails = Json.format[ServiceDetails]
 
 }
