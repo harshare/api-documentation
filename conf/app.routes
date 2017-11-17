@@ -1,3 +1,7 @@
 # microservice specific routes
 
+GET        /apis/definition                                          @uk.gov.hmrc.apidocumentation.controllers.ApiDefinitionController.fetchApiDefinitions()
+
+GET        /apis/:serviceName/definition                             @uk.gov.hmrc.apidocumentation.controllers.ApiDefinitionController.fetchApiDefinition(serviceName)
+
 GET        /apis/:serviceName/:version/documentation/*resource       @uk.gov.hmrc.apidocumentation.controllers.DocumentationController.fetchApiDocumentationResource(serviceName, version, resource)
