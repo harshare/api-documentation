@@ -23,16 +23,14 @@ import uk.gov.hmrc.apidocumentation.models.ServiceDetails
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
-import uk.gov.hmrc.play.http.metrics.{API, Metrics}
 
 import scala.concurrent.Future
 
-class ServiceLocatorConnector @Inject()(http: HttpClient, metrics: Metrics, config: ServiceConfiguration) {
+class ServiceLocatorConnector @Inject()(http: HttpClient, config: ServiceConfiguration) {
 
-  val api = API("service-locator")
   val serviceBaseUrl = config.baseUrl("service-locator")
 
-  def lookupService(serviceName: String)(implicit hc: HeaderCarrier): Future[ServiceDetails] = metrics.record(api) {
+  def lookupService(serviceName: String)(implicit hc: HeaderCarrier): Future[ServiceDetails] = {
     http.GET[ServiceDetails](s"$serviceBaseUrl/service/$serviceName")
   }
 }

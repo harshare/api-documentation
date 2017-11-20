@@ -20,6 +20,7 @@ import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.client.WireMock._
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
+import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
@@ -27,9 +28,7 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
 import uk.gov.hmrc.apidocumentation.utils.TestHttpClient
 import uk.gov.hmrc.http.{HeaderCarrier, NotFoundException, Upstream5xxResponse}
-import uk.gov.hmrc.play.http.metrics.{API, NoopMetrics}
 import uk.gov.hmrc.play.test.UnitSpec
-import org.mockito.Mockito._
 
 class ServiceLocatorConnectorSpec extends UnitSpec with ScalaFutures with BeforeAndAfterEach with GuiceOneAppPerSuite with MockitoSugar {
 
@@ -43,7 +42,7 @@ class ServiceLocatorConnectorSpec extends UnitSpec with ScalaFutures with Before
     when(serviceConfiguration.baseUrl("service-locator")).thenReturn(serviceLocatorUrl)
 
     implicit val hc = HeaderCarrier()
-    val connector = new ServiceLocatorConnector(new TestHttpClient(), NoopMetrics, serviceConfiguration)
+    val connector = new ServiceLocatorConnector(new TestHttpClient(), serviceConfiguration)
   }
 
   override def beforeEach() {
@@ -53,12 +52,6 @@ class ServiceLocatorConnectorSpec extends UnitSpec with ScalaFutures with Before
 
   override def afterEach() {
     wireMockServer.stop()
-  }
-
-  "api" should {
-    "be service-locator" in new Setup {
-      connector.api shouldBe API("service-locator")
-    }
   }
 
   "lookupService" should {

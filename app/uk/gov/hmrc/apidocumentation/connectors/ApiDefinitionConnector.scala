@@ -23,22 +23,21 @@ import uk.gov.hmrc.apidocumentation.models.{ApiDefinition, ExtendedApiDefinition
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
-import uk.gov.hmrc.play.http.metrics.{API, Metrics}
 
 import scala.concurrent.Future
 
-class ApiDefinitionConnector @Inject()(http: HttpClient, metrics: Metrics, config: ServiceConfiguration) {
+class ApiDefinitionConnector @Inject()(http: HttpClient, config: ServiceConfiguration) {
 
-  val api = API("api-definition")
   val serviceBaseUrl = config.baseUrl("api-definition")
 
   def fetchApiDefinition(serviceName: String, email: Option[String] = None)
-                        (implicit hc: HeaderCarrier): Future[ExtendedApiDefinition] = metrics.record(api) {
+                        (implicit hc: HeaderCarrier): Future[ExtendedApiDefinition] = {
 
     http.GET[ExtendedApiDefinition](s"$serviceBaseUrl/api-definition/$serviceName/extended", queryParams(email))
   }
 
-  def fetchApiDefinitions(email: Option[String] = None)(implicit hc: HeaderCarrier): Future[Seq[ApiDefinition]] = metrics.record(api) {
+  def fetchApiDefinitions(email: Option[String] = None)
+                         (implicit hc: HeaderCarrier): Future[Seq[ApiDefinition]] = {
 
     http.GET[Seq[ApiDefinition]](s"$serviceBaseUrl/api-definition", queryParams(email)).map(_.sortBy(_.name))
   }
