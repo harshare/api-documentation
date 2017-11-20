@@ -31,7 +31,6 @@ import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
 import uk.gov.hmrc.apidocumentation.models.{ApiAccess, ApiAccessType, VersionVisibility}
 import uk.gov.hmrc.apidocumentation.utils.TestHttpClient
 import uk.gov.hmrc.http.{HeaderCarrier, Upstream5xxResponse}
-import uk.gov.hmrc.play.http.metrics.{API, NoopMetrics}
 import uk.gov.hmrc.play.test.UnitSpec
 
 class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeAndAfterEach with GuiceOneAppPerSuite with MockitoSugar {
@@ -49,7 +48,7 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
     when(serviceConfiguration.baseUrl("api-definition")).thenReturn(apiDefinitionUrl)
 
     implicit val hc = HeaderCarrier()
-    val connector = new ApiDefinitionConnector(new TestHttpClient(), NoopMetrics, serviceConfiguration)
+    val connector = new ApiDefinitionConnector(new TestHttpClient(), serviceConfiguration)
   }
 
   override def beforeEach() {
@@ -59,12 +58,6 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
 
   override def afterEach() {
     wireMockServer.stop()
-  }
-
-  "api" should {
-    "be api-definition" in new Setup {
-      connector.api shouldEqual API("api-definition")
-    }
   }
 
   "fetchApiDefinition" should {
