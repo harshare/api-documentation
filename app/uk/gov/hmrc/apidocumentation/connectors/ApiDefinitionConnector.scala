@@ -19,7 +19,7 @@ package uk.gov.hmrc.apidocumentation.connectors
 import javax.inject.Inject
 
 import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
-import uk.gov.hmrc.apidocumentation.models.ServiceDetails
+import uk.gov.hmrc.apidocumentation.models.{ApiDefinition, ExtendedApiDefinition}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
@@ -27,13 +27,22 @@ import uk.gov.hmrc.play.http.metrics.{API, Metrics}
 
 import scala.concurrent.Future
 
-class ServiceLocatorConnector @Inject()(http: HttpClient, metrics: Metrics, config: ServiceConfiguration) {
+class ApiDefinitionConnector @Inject()(http: HttpClient, metrics: Metrics, config: ServiceConfiguration) {
 
-  val api = API("service-locator")
-  val serviceBaseUrl = config.baseUrl("service-locator")
+  val api = API("api-definition")
+  val serviceBaseUrl = config.baseUrl("api-definition")
 
-  def lookupService(serviceName: String)(implicit hc: HeaderCarrier): Future[ServiceDetails] = metrics.record(api) {
-    http.GET[ServiceDetails](s"$serviceBaseUrl/service/$serviceName")
+  def fetchApiDefinition(serviceName: String, email: Option[String] = None)
+                        (implicit hc: HeaderCarrier): Future[ExtendedApiDefinition] = metrics.record(api) {
+
+    http.GET[ExtendedApiDefinition](s"$serviceBaseUrl/api-definition/$serviceName/extended", queryParams(email))
   }
+
+  def fetchApiDefinitions(email: Option[String] = None)(implicit hc: HeaderCarrier): Future[Seq[ApiDefinition]] = metrics.record(api) {
+
+    http.GET[Seq[ApiDefinition]](s"$serviceBaseUrl/api-definition", queryParams(email)).map(_.sortBy(_.name))
+  }
+
+  private def queryParams(email: Option[String]) = email.fold(Seq.empty[(String,String)])(e => Seq("email" -> e))
 }
 
