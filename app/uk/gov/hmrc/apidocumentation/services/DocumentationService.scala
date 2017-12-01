@@ -41,10 +41,8 @@ class DocumentationService @Inject()(serviceLocator: ServiceLocatorConnector, ws
             .getOrElse("application/octet-stream")
 
           response.headers.get("Content-Length") match {
-            case Some(Seq(length)) =>
-              Ok.sendEntity(HttpEntity.Streamed(body, Some(length.toLong), Some(contentType)))
-            case _ =>
-              Ok.chunked(body).as(contentType)
+            case Some(Seq(length)) => Ok.sendEntity(HttpEntity.Streamed(body, Some(length.toLong), Some(contentType)))
+            case _ => Ok.chunked(body).as(contentType)
           }
         }
         case NOT_FOUND => throw new NotFoundException(s"$resource not found for $serviceName $version")
