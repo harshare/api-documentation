@@ -22,6 +22,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
 import play.api.http.HeaderNames.CONTENT_TYPE
 import play.api.http.Status._
+import play.api.mvc.Results
 import play.api.test.FakeRequest
 import uk.gov.hmrc.apidocumentation.models.DocumentationResource
 import uk.gov.hmrc.apidocumentation.services.DocumentationService
@@ -45,9 +46,9 @@ class DocumentationControllerSpec  extends UnitSpec with ScalaFutures with Mocki
 
     val underTest = new DocumentationController(documentationService)
 
-    def theServiceWillReturnTheResource(resource: DocumentationResource) = {
+    def theServiceWillReturnTheResource(): Any = {
       when(documentationService.fetchApiDocumentationResource(anyString, anyString, anyString)(any[HeaderCarrier]))
-        .thenReturn(Future.successful(resource))
+        .thenReturn(Future.successful(Results.Ok(body).withHeaders(CONTENT_TYPE -> contentType)))
     }
 
     def theServiceWillFailToReturnTheResource = {
@@ -59,7 +60,7 @@ class DocumentationControllerSpec  extends UnitSpec with ScalaFutures with Mocki
   "DocumentationController" should {
 
     "call the service to get the resource" in new Setup {
-      theServiceWillReturnTheResource(DocumentationResource(body, Some(contentType)))
+      theServiceWillReturnTheResource()
 
       await(underTest.fetchApiDocumentationResource(serviceName, version, resourceName)(request))
 
@@ -67,7 +68,7 @@ class DocumentationControllerSpec  extends UnitSpec with ScalaFutures with Mocki
     }
 
     "return the resource with a Content-type header when the content type is known" in new Setup {
-      theServiceWillReturnTheResource(DocumentationResource(body, Some(contentType)))
+      theServiceWillReturnTheResource()
 
       val result = await(underTest.fetchApiDocumentationResource(serviceName, version, resourceName)(request))
 
@@ -77,7 +78,7 @@ class DocumentationControllerSpec  extends UnitSpec with ScalaFutures with Mocki
     }
 
     "return the resource with no Content-type header when the content type is unknown" in new Setup {
-      theServiceWillReturnTheResource(DocumentationResource(body, None))
+      theServiceWillReturnTheResource()
 
       val result = await(underTest.fetchApiDocumentationResource(serviceName, version, resourceName)(request))
 

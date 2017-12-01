@@ -31,8 +31,9 @@ lazy val test = Seq(
   "org.pegdown" % "pegdown" % "1.6.0" % scope,
   "com.typesafe.play" %% "play-test" % PlayVersion.current % scope,
   "org.scalaj" %% "scalaj-http" % "2.3.0" % scope,
-  "com.github.tomakehurst" % "wiremock" % "2.8.0" % scope
-  )
+  "com.github.tomakehurst" % "wiremock" % "2.8.0" % scope,
+  "de.leanovate.play-mockws" %% "play-mockws" % "2.5.1" % scope
+)
 
 lazy val plugins: Seq[Plugins] = Seq.empty
 lazy val playSettings: Seq[Setting[_]] = Seq.empty

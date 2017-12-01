@@ -20,30 +20,37 @@ import org.mockito.ArgumentMatchers.{any, anyString, eq => eqTo}
 import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
-import play.api.http.HeaderNames.CONTENT_TYPE
+import play.api.mvc.{Action, Results}
 import uk.gov.hmrc.apidocumentation.connectors.ServiceLocatorConnector
 import uk.gov.hmrc.apidocumentation.models.ServiceDetails
-import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, Upstream4xxResponse}
-import uk.gov.hmrc.play.bootstrap.http.HttpClient
+import uk.gov.hmrc.http.{HeaderCarrier, InternalServerException, Upstream4xxResponse}
 import uk.gov.hmrc.play.test.UnitSpec
+import mockws.MockWS
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
 class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSugar {
 
+  val serviceUrl = "http://api-example-microservice.protected.mdtp"
+
+  val serviceName = "hello-world"
+  val version = "1.0"
+  val resourceFoundUrl = s"$serviceUrl/api/conf/$version/resource"
+  val resourceNotFoundUrl = s"$serviceUrl/api/conf/$version/resourceNotThere"
+  val serviceUnavailableUrl = s"$serviceUrl/api/conf/$version/resourceInvalid"
+  val timeoutUrl = s"$serviceUrl/api/conf/$version/timeout"
+  val serviceLocatorConnector = mock[ServiceLocatorConnector]
+
+  val mockWS = MockWS {
+    case ("GET", `resourceFoundUrl`) => Action(Results.Ok("hello world"))
+    case ("GET", `resourceNotFoundUrl`) => Action(Results.NotFound)
+    case ("GET", `serviceUnavailableUrl`) => Action(Results.ServiceUnavailable)
+    case ("GET", `timeoutUrl`) => Action(Results.RequestTimeout)
+  }
+
   trait Setup {
-    val httpClient = mock[HttpClient]
-    val serviceLocatorConnector = mock[ServiceLocatorConnector]
-    val response = mock[HttpResponse]
-    val body = "RAML doc content"
-    val contentType = "application/text"
-    val hc = new HeaderCarrier()
-
-    val serviceName = "api-example-microservice"
-    val serviceUrl = "http://api-example-microservice.protected.mdtp"
-
-    val underTest = new DocumentationService(serviceLocatorConnector, httpClient)
-
+    implicit val hc = HeaderCarrier()
+    val underTest = new DocumentationService(serviceLocatorConnector, mockWS)
     def serviceLocatorWillReturnTheServiceDetails = {
       when(serviceLocatorConnector.lookupService(anyString)(any[HeaderCarrier]))
         .thenReturn(Future.successful(ServiceDetails(serviceName, serviceUrl)))
@@ -54,63 +61,40 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
         .thenReturn(Future.failed(new Upstream4xxResponse("Not found", 404, 404)))
     }
 
-    def theServiceWillReturnTheResource = {
-      when(httpClient.GET[HttpResponse](any)(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]))
-        .thenReturn(Future.successful(response))
-      when(response.body).thenReturn(body)
-      when(response.header(CONTENT_TYPE)).thenReturn(Some(contentType))
-    }
-
-    def theServiceWillFailToReturnTheResource = {
-      when(httpClient.GET[HttpResponse](any)(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext]))
-        .thenReturn(Future.failed(new Upstream4xxResponse("Not found", 404, 404)))
-    }
   }
 
   "DocumentationService" should {
 
     "ask service locator for the service URL" in new Setup {
       serviceLocatorWillReturnTheServiceDetails
-      theServiceWillReturnTheResource
 
-      val result = await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "application.raml")(hc))
+      val result = await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resource")(hc))
 
       verify(serviceLocatorConnector).lookupService(eqTo(serviceName))(any[HeaderCarrier])
     }
 
-    "call the service to fetch the resource" in new Setup {
-      serviceLocatorWillReturnTheServiceDetails
-      theServiceWillReturnTheResource
-
-      val result = await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "application.raml")(hc))
-
-      verify(httpClient).GET(eqTo(s"$serviceUrl/api/conf/1.0/application.raml"))(any[HttpReads[HttpResponse]], any[HeaderCarrier], any[ExecutionContext])
-    }
-
     "return the resource" in new Setup {
       serviceLocatorWillReturnTheServiceDetails
-      theServiceWillReturnTheResource
 
-      val result = await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "application.raml")(hc))
+      val result = await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resource")(hc))
 
-      result.body shouldBe body
-      result.contentType shouldBe Some(contentType)
+      result.header.status should be(200)
+
     }
 
     "fail when service locator does not find the service URL" in new Setup {
       serviceLocatorWillFailToReturnTheServiceDetails
 
       intercept[Upstream4xxResponse] {
-        await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "application.raml")(hc))
+        await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resourceNotThere")(hc))
       }
     }
 
     "fail when the service does not return the resource" in new Setup {
       serviceLocatorWillReturnTheServiceDetails
-      theServiceWillFailToReturnTheResource
 
-      intercept[Upstream4xxResponse] {
-        await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "application.raml")(hc))
+      intercept[InternalServerException] {
+        await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resourceInvalid")(hc))
       }
     }
   }
