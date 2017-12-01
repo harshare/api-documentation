@@ -16,16 +16,19 @@
 
 package uk.gov.hmrc.apidocumentation.services
 
+import akka.stream.scaladsl.{FileIO, Source}
+import akka.util.ByteString
+import mockws.MockWS
 import org.mockito.ArgumentMatchers.{any, anyString, eq => eqTo}
 import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
-import play.api.mvc.{Action, Results}
+import play.api.http.HttpEntity
+import play.api.mvc.{Action, ResponseHeader, Result, Results}
 import uk.gov.hmrc.apidocumentation.connectors.ServiceLocatorConnector
 import uk.gov.hmrc.apidocumentation.models.ServiceDetails
-import uk.gov.hmrc.http.{HeaderCarrier, InternalServerException, Upstream4xxResponse}
+import uk.gov.hmrc.http.{HeaderCarrier, InternalServerException, NotFoundException, Upstream4xxResponse}
 import uk.gov.hmrc.play.test.UnitSpec
-import mockws.MockWS
 
 import scala.concurrent.Future
 
@@ -36,13 +39,21 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
   val serviceName = "hello-world"
   val version = "1.0"
   val resourceFoundUrl = s"$serviceUrl/api/conf/$version/resource"
+  val streamedResourceUrl = s"$serviceUrl/api/conf/$version/streamedResource"
   val resourceNotFoundUrl = s"$serviceUrl/api/conf/$version/resourceNotThere"
   val serviceUnavailableUrl = s"$serviceUrl/api/conf/$version/resourceInvalid"
   val timeoutUrl = s"$serviceUrl/api/conf/$version/timeout"
   val serviceLocatorConnector = mock[ServiceLocatorConnector]
 
+  val file = new java.io.File("hello")
+  val path: java.nio.file.Path = file.toPath
+  val source: Source[ByteString, _] = FileIO.fromPath(path)
   val mockWS = MockWS {
     case ("GET", `resourceFoundUrl`) => Action(Results.Ok("hello world"))
+    case ("GET", `streamedResourceUrl`) => Action(Result(
+      header = ResponseHeader(200, Map("Content-length"-> s"${file.length()}")),
+      body = HttpEntity.Streamed(source, Some(file.length()), Some("application/pdf"))
+    ))
     case ("GET", `resourceNotFoundUrl`) => Action(Results.NotFound)
     case ("GET", `serviceUnavailableUrl`) => Action(Results.ServiceUnavailable)
     case ("GET", `timeoutUrl`) => Action(Results.RequestTimeout)
@@ -58,7 +69,7 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
     def serviceLocatorWillFailToReturnTheServiceDetails = {
       when(serviceLocatorConnector.lookupService(anyString)(any[HeaderCarrier]))
-        .thenReturn(Future.failed(new Upstream4xxResponse("Not found", 404, 404)))
+        .thenReturn(Future.failed(Upstream4xxResponse("Not found", 404, 404)))
     }
 
   }
@@ -88,6 +99,21 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
       intercept[Upstream4xxResponse] {
         await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resourceNotThere")(hc))
       }
+    }
+
+    "fail when resource not found" in new Setup {
+      serviceLocatorWillReturnTheServiceDetails
+
+      intercept[NotFoundException] {
+        await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resourceNotThere")(hc))
+      }
+    }
+
+    "return streamed resource" in new Setup {
+      serviceLocatorWillReturnTheServiceDetails
+      val result = await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "streamedResource")(hc))
+
+      result.header.status should be(200)
     }
 
     "fail when the service does not return the resource" in new Setup {
