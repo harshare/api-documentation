@@ -19,17 +19,13 @@ package uk.gov.hmrc.apidocumentation.controllers
 import javax.inject.Inject
 
 import play.api.mvc._
-import uk.gov.hmrc.apidocumentation.models.DocumentationResource
 import uk.gov.hmrc.apidocumentation.services.DocumentationService
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
-import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 
 class DocumentationController @Inject() (service: DocumentationService) extends BaseController {
 
   def fetchApiDocumentationResource(serviceName: String, version: String, resource: String) = Action.async { implicit request =>
-    service.fetchApiDocumentationResource(serviceName, version, resource) map {
-      case DocumentationResource(body, Some(contentType)) => Ok(body).withHeaders(CONTENT_TYPE -> contentType)
-      case DocumentationResource(body, _) => Ok(body)
-    }
+    service.fetchApiDocumentationResource(serviceName, version, resource)
   }
+
 }
