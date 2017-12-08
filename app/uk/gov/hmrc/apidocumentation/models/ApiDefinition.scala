@@ -28,7 +28,7 @@ case class ApiAccess(`type`: ApiAccessType.Value)
 
 object ApiStatus extends Enumeration {
   type ApiStatus = Value
-  val PROTOTYPED, PUBLISHED, DEPRECATED, RETIRED = Value
+  val ALPHA, BETA, PROTOTYPED, PUBLISHED, STABLE, DEPRECATED, RETIRED = Value
 }
 
 

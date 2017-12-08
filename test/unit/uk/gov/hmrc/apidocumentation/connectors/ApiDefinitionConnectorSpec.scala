@@ -158,7 +158,7 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
   private def apiDefinitionsJson(names: String*) = {
     names.map(apiDefinitionJson).mkString("[", ",", "]")
   }
-  
+
   private def extendedApiDefinitionJson(name: String) = {
     val definition = apiDefinitionJson(name)
     s"""{
@@ -189,7 +189,7 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
         |  "versions" : [
         |    {
         |      "version" : "1.0",
-        |      "status" : "PUBLISHED",
+        |      "status" : "STABLE",
         |      "endpoints" : [
         |        {
         |          "uriPattern" : "/hello",
@@ -202,7 +202,7 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
         |    },
         |    {
         |      "version" : "2.0",
-        |      "status" : "PUBLISHED",
+        |      "status" : "STABLE",
         |      "endpoints" : [
         |        {
         |          "uriPattern" : "/hello",
@@ -232,7 +232,7 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
         |        "access" : {
         |          "type" : "PUBLIC"
         |        },
-        |        "status" : "PUBLISHED",
+        |        "status" : "STABLE",
         |        "endpoints" : [
         |          {
         |            "uriPattern" : "/hello",
@@ -249,7 +249,7 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
         |          "type" : "PRIVATE",
         |          "whitelistedApplicationIds" : ["app-id-1","app-id-2"]
         |        },
-        |        "status" : "PUBLISHED",
+        |        "status" : "STABLE",
         |        "endpoints" : [
         |          {
         |            "uriPattern" : "/hello",
