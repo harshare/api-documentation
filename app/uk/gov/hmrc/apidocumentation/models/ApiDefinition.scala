@@ -45,7 +45,11 @@ case class ApiDefinition(serviceName: String,
                          context: String,
                          requiresTrust: Option[Boolean],
                          isTestSupport: Option[Boolean],
-                         versions: Seq[ApiVersion])
+                         versions: Seq[ApiVersion]) {
+  def isIn(definitions: Seq[ApiDefinition]): Boolean = {
+    definitions.map(_.name).contains(name)
+  }
+}
 
 case class ApiVersion(version: String, access: Option[ApiAccess], status: ApiStatus, endpoints: Seq[Endpoint])
 

@@ -16,47 +16,51 @@
 
 package uk.gov.hmrc.apidocumentation.services
 
+import org.mockito.ArgumentMatchers.{any, anyString, eq => eqTo}
+import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
-import uk.gov.hmrc.apidocumentation.connectors.ApiDefinitionConnector
+import uk.gov.hmrc.apidocumentation.connectors.{ApiDefinitionConnector, ApiDocumentationConnector}
+import uk.gov.hmrc.apidocumentation.models.{ApiDefinition, ApiStatus, ApiVersion, ExtendedApiDefinition}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
-import org.mockito.Mockito._
-import org.mockito.ArgumentMatchers.{any, anyString, eq => eqTo}
-import uk.gov.hmrc.apidocumentation.models.{ApiDefinition, ExtendedApiDefinition}
 
 import scala.concurrent.Future
 
 class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSugar {
 
   trait Setup {
-    val apiDefinitionConnector = mock[ApiDefinitionConnector]
+    val mockApiDefinitionConnector = mock[ApiDefinitionConnector]
     implicit val hc = new HeaderCarrier()
-
+    val mockApiDocumentationConnector = mock[ApiDocumentationConnector]
     val serviceName = "api-example-microservice"
     val loggedInUserEmail = "john.doe@example.com"
-    val apiDefinitions = Seq(ApiDefinition(serviceName, "Hello World", "Example", "hello", None, None, Seq.empty))
+    val localDef1 = ApiDefinition(serviceName, "Hello World", "Example", "hello", None, None, Seq(ApiVersion("1.0", None, ApiStatus.ALPHA, Seq.empty)))
+    val localDef2 = ApiDefinition("api-person", "Hello Person", "Example", "hello-person", None, None, Seq(ApiVersion("1.0", None, ApiStatus.STABLE, Seq.empty)))
+    val remoteDef = localDef1.copy(versions = Seq(ApiVersion("2.0", None, ApiStatus.BETA, Seq.empty)))
+    val apiDefinitions = Seq(localDef1, localDef2)
     val apiDefinition = ExtendedApiDefinition(apiDefinitions.head, Map.empty)
 
-    val underTest = new ApiDefinitionService(apiDefinitionConnector)
+    val underTest = new ApiDefinitionService(mockApiDefinitionConnector, mockApiDocumentationConnector)
+    when(mockApiDocumentationConnector.fetchApiDefinitions(any[Option[String]])(any[HeaderCarrier])).thenReturn(Seq.empty)
 
     def theConnectorWillReturnTheApiDefinition = {
-      when(apiDefinitionConnector.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
+      when(mockApiDefinitionConnector.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
           .thenReturn(Future.successful(apiDefinition))
     }
 
     def theConnectorWillFailToReturnTheApiDefinition = {
-      when(apiDefinitionConnector.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
+      when(mockApiDefinitionConnector.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
           .thenReturn(Future.failed(new RuntimeException))
     }
 
     def theConnectorWillReturnTheApiDefinitions = {
-      when(apiDefinitionConnector.fetchApiDefinitions(any[Option[String]])(any[HeaderCarrier]))
+      when(mockApiDefinitionConnector.fetchApiDefinitions(any[Option[String]])(any[HeaderCarrier]))
           .thenReturn(Future.successful(apiDefinitions))
     }
 
     def theConnectorWillFailToReturnTheApiDefinitions = {
-      when(apiDefinitionConnector.fetchApiDefinitions(any[Option[String]])(any[HeaderCarrier]))
+      when(mockApiDefinitionConnector.fetchApiDefinitions(any[Option[String]])(any[HeaderCarrier]))
           .thenReturn(Future.failed(new RuntimeException))
     }
   }
@@ -68,7 +72,7 @@ class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
       await(underTest.fetchApiDefinition(serviceName, Some(loggedInUserEmail)))
 
-      verify(apiDefinitionConnector).fetchApiDefinition(eqTo(serviceName), eqTo(Some(loggedInUserEmail)))(any[HeaderCarrier])
+      verify(mockApiDefinitionConnector).fetchApiDefinition(eqTo(serviceName), eqTo(Some(loggedInUserEmail)))(any[HeaderCarrier])
     }
 
     "return the API definition" in new Setup {
@@ -95,7 +99,7 @@ class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
       await(underTest.fetchApiDefinitions(Some(loggedInUserEmail)))
 
-      verify(apiDefinitionConnector).fetchApiDefinitions(eqTo(Some(loggedInUserEmail)))(any[HeaderCarrier])
+      verify(mockApiDefinitionConnector).fetchApiDefinitions(eqTo(Some(loggedInUserEmail)))(any[HeaderCarrier])
     }
 
     "return the API definitions" in new Setup {
@@ -103,7 +107,16 @@ class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
       val result = await(underTest.fetchApiDefinitions(Some(loggedInUserEmail)))
 
-      result shouldBe apiDefinitions
+      result shouldBe apiDefinitions.sortBy(_.name)
+    }
+
+    "return the API definitions keeping remote ones first" in new Setup {
+      theConnectorWillReturnTheApiDefinitions
+      when(mockApiDocumentationConnector.fetchApiDefinitions(any[Option[String]])(any[HeaderCarrier])).thenReturn(Seq(remoteDef))
+
+      val result = await(underTest.fetchApiDefinitions(Some(loggedInUserEmail)))
+
+      result shouldBe Seq(localDef2,remoteDef)
     }
 
     "fail when the connector fails to return the API definitions" in new Setup {

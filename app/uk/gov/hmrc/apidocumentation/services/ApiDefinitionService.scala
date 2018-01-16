@@ -18,17 +18,24 @@ package uk.gov.hmrc.apidocumentation.services
 
 import javax.inject.Inject
 
-import uk.gov.hmrc.apidocumentation.connectors.ApiDefinitionConnector
+import uk.gov.hmrc.apidocumentation.connectors.{ApiDefinitionConnector, ApiDocumentationConnector}
 import uk.gov.hmrc.apidocumentation.models.ApiDefinition
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 
 import scala.concurrent.Future
 
-class ApiDefinitionService @Inject() (apiDefinitionConnector: ApiDefinitionConnector) {
+class ApiDefinitionService @Inject()(apiDefinitionConnector: ApiDefinitionConnector, apiDocumentationConnector: ApiDocumentationConnector) {
 
   def fetchApiDefinitions(thirdPartyDeveloperEmail: Option[String])(implicit hc: HeaderCarrier): Future[Seq[ApiDefinition]] = {
-    apiDefinitionConnector.fetchApiDefinitions(thirdPartyDeveloperEmail)
+    val localFuture = apiDefinitionConnector.fetchApiDefinitions(thirdPartyDeveloperEmail)
+    val remoteFuture = apiDocumentationConnector.fetchApiDefinitions(thirdPartyDeveloperEmail)
+    for {
+      remoteDefinitions <- remoteFuture
+      localDefinitions <- localFuture
+    } yield (remoteDefinitions ++ localDefinitions.filterNot(_.isIn(remoteDefinitions))).sortBy(_.name)
   }
+
 
   def fetchApiDefinition(serviceName: String, thirdPartyDeveloperEmail: Option[String])(implicit hc: HeaderCarrier) = {
     apiDefinitionConnector.fetchApiDefinition(serviceName, thirdPartyDeveloperEmail)
