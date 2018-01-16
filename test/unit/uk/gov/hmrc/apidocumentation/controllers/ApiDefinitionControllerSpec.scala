@@ -26,15 +26,20 @@ import uk.gov.hmrc.apidocumentation.services.ApiDefinitionService
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
 import play.api.http.Status._
+import play.api.libs.json.Json
+
 import scala.concurrent.Future
 
-class ApiDefinitionControllerSpec  extends UnitSpec with ScalaFutures with MockitoSugar with WithFakeApplication {
+class ApiDefinitionControllerSpec extends UnitSpec with ScalaFutures with MockitoSugar with WithFakeApplication {
 
   trait Setup {
     val serviceName = "api-example-microservice"
     val loggedInUserEmail = "john.doe@example.com"
 
-    val apiDefinitions = Seq(ApiDefinition(serviceName, "Hello World", "Example", "hello", None, None, Seq.empty))
+    val apiDefinitions = Seq(
+      ApiDefinition(serviceName, "Hello World", "Example", "hello", None, None, Seq.empty),
+      ApiDefinition("api-example-person", "Hello Person", "Example", "hello-person", None, None, Seq.empty)
+    )
     val apiDefinition = ExtendedApiDefinition(apiDefinitions.head, Map.empty)
 
     implicit val mat = fakeApplication.materializer
@@ -90,6 +95,7 @@ class ApiDefinitionControllerSpec  extends UnitSpec with ScalaFutures with Mocki
       val result = await(underTest.fetchApiDefinitions()(request))
 
       status(result) shouldBe OK
+      Json.parse(bodyOf(result)) shouldBe Json.toJson(apiDefinitions)
     }
 
     "fail when the service fails to return the API definitions" in new Setup {
