@@ -25,6 +25,7 @@ import uk.gov.hmrc.apidocumentation.models.{ApiDefinition, ExtendedApiDefinition
 import uk.gov.hmrc.http.{HeaderCarrier, Upstream4xxResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
+import uk.gov.hmrc.play.http.ws.WSProxy
 
 import scala.concurrent.Future
 

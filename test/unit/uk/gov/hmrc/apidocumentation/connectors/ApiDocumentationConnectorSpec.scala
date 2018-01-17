@@ -36,6 +36,8 @@ import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
 import uk.gov.hmrc.apidocumentation.models.{ApiAccess, ApiAccessType}
 import uk.gov.hmrc.apidocumentation.utils.TestHttpClient
 import uk.gov.hmrc.http.{HeaderCarrier, Upstream5xxResponse}
+import uk.gov.hmrc.apidocumentation.utils.ProxyTestHttpClient
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 
 class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with BeforeAndAfterEach with GuiceOneAppPerSuite with MockitoSugar {
@@ -123,7 +125,7 @@ class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with Befo
       val result = await(connector.fetchApiDefinitions(Some(loggedInUserEmail)))
       result.size shouldBe 0
     }
-    
+
     "return an empty Sequence if the remote call is disabled" in new Setup {
      override val connector = new ApiDocumentationConnector(new TestHttpClient(), mockWs, new TestServiceConfiguration(false))
 

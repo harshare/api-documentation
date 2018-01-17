@@ -16,9 +16,17 @@
 
 package uk.gov.hmrc.apidocumentation.utils
 
+import play.api.libs.ws.WSProxyServer
+import uk.gov.hmrc.http.hooks.HttpHook
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
-import uk.gov.hmrc.play.http.ws.WSHttp
+import uk.gov.hmrc.play.http.ws.{WSHttp, WSProxy}
 
 class TestHttpClient extends HttpClient with WSHttp {
   override val hooks = Seq.empty
+}
+
+class ProxyTestHttpClient extends HttpClient with WSProxy  with WSHttp {
+  override def wsProxyServer: Option[WSProxyServer] = None
+
+  override val hooks: Seq[HttpHook] = Nil
 }
