@@ -21,7 +21,7 @@ import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
 import play.api.test.FakeRequest
-import uk.gov.hmrc.apidocumentation.models.{ApiDefinition, ExtendedApiDefinition}
+import uk.gov.hmrc.apidocumentation.models.{ApiAccess, ApiAccessType, ApiAvailability, ApiDefinition, ApiStatus, ExtendedApiDefinition, ExtendedApiVersion}
 import uk.gov.hmrc.apidocumentation.services.ApiDefinitionService
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
@@ -40,17 +40,19 @@ class ApiDefinitionControllerSpec extends UnitSpec with ScalaFutures with Mockit
       ApiDefinition(serviceName, "Hello World", "Example", "hello", None, None, Seq.empty),
       ApiDefinition("api-example-person", "Hello Person", "Example", "hello-person", None, None, Seq.empty)
     )
-    val apiDefinition = ExtendedApiDefinition(apiDefinitions.head, Map.empty)
+    val apiDefinition = ExtendedApiDefinition(serviceName, "http://hello.protected.mdtp", "Hello World", "Example", "hello",
+      requiresTrust = false, isTestSupport = false, Seq(ExtendedApiVersion("1.0", ApiStatus.ALPHA, Seq.empty,
+        Some(ApiAvailability(endpointsEnabled = true, ApiAccess(ApiAccessType.PUBLIC), loggedIn = false, authorised = false)), None)))
 
     implicit val mat = fakeApplication.materializer
     val apiDefinitionService = mock[ApiDefinitionService]
-    val hc = new HeaderCarrier()
+    val hc = HeaderCarrier()
     val request = FakeRequest()
     val requestWithEmailQueryParameter = FakeRequest("GET", s"?email=$loggedInUserEmail")
 
     val underTest = new ApiDefinitionController(apiDefinitionService)
 
-    def theServiceWillReturnTheApiDefinition() = {
+    def theServiceWillReturnTheApiDefinition = {
       when(apiDefinitionService.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
         .thenReturn(Future.successful(apiDefinition))
     }
@@ -60,7 +62,7 @@ class ApiDefinitionControllerSpec extends UnitSpec with ScalaFutures with Mockit
         .thenReturn(Future.failed(new RuntimeException))
     }
 
-    def theServiceWillReturnTheApiDefinitions() = {
+    def theServiceWillReturnTheApiDefinitions = {
       when(apiDefinitionService.fetchApiDefinitions(any[Option[String]])(any[HeaderCarrier]))
         .thenReturn(Future.successful(apiDefinitions))
     }
@@ -125,7 +127,7 @@ class ApiDefinitionControllerSpec extends UnitSpec with ScalaFutures with Mockit
       verify(apiDefinitionService).fetchApiDefinition(eqTo(serviceName), eqTo(Some(loggedInUserEmail)))(any[HeaderCarrier])
     }
 
-    "reutrn the API definition for a single service" in new Setup {
+    "return the API definition for a single service" in new Setup {
       theServiceWillReturnTheApiDefinition
 
       val result = await(underTest.fetchApiDefinition(serviceName)(request))

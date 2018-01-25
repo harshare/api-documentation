@@ -21,7 +21,7 @@ import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.apidocumentation.connectors.{ApiDefinitionConnector, ApiDocumentationConnector}
-import uk.gov.hmrc.apidocumentation.models.{ApiDefinition, ApiStatus, ApiVersion, ExtendedApiDefinition}
+import uk.gov.hmrc.apidocumentation.models.{ApiAccess, ApiAccessType, ApiAvailability, ApiDefinition, ApiStatus, ApiVersion, ExtendedApiDefinition, ExtendedApiVersion}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 
@@ -35,31 +35,71 @@ class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
     val mockApiDocumentationConnector = mock[ApiDocumentationConnector]
     val serviceName = "api-example-microservice"
     val loggedInUserEmail = "john.doe@example.com"
-    val localDef1 = ApiDefinition(serviceName, "Hello World", "Example", "hello", None, None, Seq(ApiVersion("1.0", None, ApiStatus.ALPHA, Seq.empty)))
-    val localDef2 = ApiDefinition("api-person", "Hello Person", "Example", "hello-person", None, None, Seq(ApiVersion("1.0", None, ApiStatus.STABLE, Seq.empty)))
-    val remoteDef = localDef1.copy(versions = Seq(ApiVersion("2.0", None, ApiStatus.BETA, Seq.empty)))
+    val localDef1 = ApiDefinition(serviceName, "Hello World", "Example", "hello", None, None, Seq(ApiVersion("1.0", None, ApiStatus.ALPHA, Seq.empty, false)))
+    val localDef2 = ApiDefinition("api-person", "Hello Person", "Example", "hello-person", None, None, Seq(ApiVersion("1.0", None, ApiStatus.STABLE, Seq.empty, false)))
+    val remoteDef = localDef1.copy(versions = Seq(ApiVersion("2.0", None, ApiStatus.BETA, Seq.empty, false)))
     val apiDefinitions = Seq(localDef1, localDef2)
-    val apiDefinition = ExtendedApiDefinition(apiDefinitions.head, Map.empty)
+
+    val productionV1Availability = ApiAvailability(endpointsEnabled = true, ApiAccess(ApiAccessType.PRIVATE), loggedIn = false, authorised = false)
+    val sandboxV1Availability = ApiAvailability(endpointsEnabled = true, ApiAccess(ApiAccessType.PUBLIC), loggedIn = false, authorised = false)
+    val sandboxV2Availability = ApiAvailability(endpointsEnabled = false, ApiAccess(ApiAccessType.PUBLIC), loggedIn = false, authorised = false)
+
+    val productionApiDefinition = ExtendedApiDefinition(serviceName, "http://hello.protected.mdtp", "Hello World", "Example", "hello",
+      requiresTrust = false, isTestSupport = false, Seq(
+        ExtendedApiVersion("1.0", ApiStatus.STABLE, Seq.empty, Some(productionV1Availability), None)
+      ))
+
+    val sandboxApiDefinition = ExtendedApiDefinition(serviceName, "http://hello.protected.mdtp", "Hello World", "Example", "hello",
+      requiresTrust = false, isTestSupport = false, Seq(
+        ExtendedApiVersion("1.0", ApiStatus.STABLE, Seq.empty, None, Some(sandboxV1Availability)),
+        ExtendedApiVersion("2.0", ApiStatus.ALPHA, Seq.empty, None, Some(sandboxV2Availability))
+      ))
+
+    val combinedApiDefinition = ExtendedApiDefinition(serviceName, "http://hello.protected.mdtp", "Hello World", "Example", "hello",
+      requiresTrust = false, isTestSupport = false, Seq(
+        ExtendedApiVersion("1.0", ApiStatus.STABLE, Seq.empty, Some(productionV1Availability), Some(sandboxV1Availability)),
+        ExtendedApiVersion("2.0", ApiStatus.ALPHA, Seq.empty, None, Some(sandboxV2Availability))
+      ))
 
     val underTest = new ApiDefinitionService(mockApiDefinitionConnector, mockApiDocumentationConnector)
     when(mockApiDocumentationConnector.fetchApiDefinitions(any[Option[String]])(any[HeaderCarrier])).thenReturn(Seq.empty)
 
-    def theConnectorWillReturnTheApiDefinition = {
+    def theApiDefinitionConnectorWillReturnTheApiDefinition = {
       when(mockApiDefinitionConnector.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
-          .thenReturn(Future.successful(apiDefinition))
+          .thenReturn(Future.successful(Some(productionApiDefinition)))
     }
 
-    def theConnectorWillFailToReturnTheApiDefinition = {
+    def theApiDocumentationConnectorWillReturnTheApiDefinition = {
+      when(mockApiDocumentationConnector.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
+          .thenReturn(Future.successful(Some(sandboxApiDefinition)))
+    }
+
+    def theApiDefinitionConnectorWillReturnNoApiDefinition = {
+      when(mockApiDefinitionConnector.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
+          .thenReturn(Future.successful(None))
+    }
+
+    def theApiDocumentationConnectorWillReturnNoApiDefinition = {
+      when(mockApiDocumentationConnector.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
+          .thenReturn(Future.successful(None))
+    }
+
+    def theApiDefinitionConnectorWillFailToReturnTheApiDefinition = {
       when(mockApiDefinitionConnector.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
           .thenReturn(Future.failed(new RuntimeException))
     }
 
-    def theConnectorWillReturnTheApiDefinitions = {
+    def theApiDocumentationConnectorWillFailToReturnTheApiDefinition = {
+      when(mockApiDocumentationConnector.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
+          .thenReturn(Future.failed(new RuntimeException))
+    }
+
+    def theApiDefinitionConnectorWillReturnTheApiDefinitions = {
       when(mockApiDefinitionConnector.fetchApiDefinitions(any[Option[String]])(any[HeaderCarrier]))
           .thenReturn(Future.successful(apiDefinitions))
     }
 
-    def theConnectorWillFailToReturnTheApiDefinitions = {
+    def theApiDefinitionConnectorWillFailToReturnTheApiDefinitions = {
       when(mockApiDefinitionConnector.fetchApiDefinitions(any[Option[String]])(any[HeaderCarrier]))
           .thenReturn(Future.failed(new RuntimeException))
     }
@@ -67,24 +107,46 @@ class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
   "fetchApiDefinition" should {
 
-    "call the connector to fetch the API definition" in new Setup {
-      theConnectorWillReturnTheApiDefinition
+    "call the connectors to fetch the API definition" in new Setup {
+      theApiDefinitionConnectorWillReturnTheApiDefinition
+      theApiDocumentationConnectorWillReturnTheApiDefinition
 
       await(underTest.fetchApiDefinition(serviceName, Some(loggedInUserEmail)))
 
       verify(mockApiDefinitionConnector).fetchApiDefinition(eqTo(serviceName), eqTo(Some(loggedInUserEmail)))(any[HeaderCarrier])
+      verify(mockApiDocumentationConnector).fetchApiDefinition(eqTo(serviceName), eqTo(Some(loggedInUserEmail)))(any[HeaderCarrier])
     }
 
-    "return the API definition" in new Setup {
-      theConnectorWillReturnTheApiDefinition
+    "return the API definition when it exists in prod only" in new Setup {
+      theApiDefinitionConnectorWillReturnTheApiDefinition
+      theApiDocumentationConnectorWillReturnNoApiDefinition
 
       val result = await(underTest.fetchApiDefinition(serviceName, Some(loggedInUserEmail)))
 
-      result shouldBe apiDefinition
+      result shouldBe productionApiDefinition
     }
 
-    "fail when the connector fails to return the API definition" in new Setup {
-      theConnectorWillFailToReturnTheApiDefinition
+    "return the API definition when it exists in sandbox only" in new Setup {
+      theApiDefinitionConnectorWillReturnNoApiDefinition
+      theApiDocumentationConnectorWillReturnTheApiDefinition
+
+      val result = await(underTest.fetchApiDefinition(serviceName, Some(loggedInUserEmail)))
+
+      result shouldBe sandboxApiDefinition
+    }
+
+    "return the API combined definition when it exists in prod and sandbox" in new Setup {
+      theApiDefinitionConnectorWillReturnTheApiDefinition
+      theApiDocumentationConnectorWillReturnTheApiDefinition
+
+      val result = await(underTest.fetchApiDefinition(serviceName, Some(loggedInUserEmail)))
+
+      result shouldBe combinedApiDefinition
+    }
+
+    "fail when the API definition connector fails to return the API definition" in new Setup {
+      theApiDefinitionConnectorWillFailToReturnTheApiDefinition
+      theApiDocumentationConnectorWillReturnTheApiDefinition
 
       intercept[RuntimeException] {
         await(underTest.fetchApiDefinition(serviceName, Some(loggedInUserEmail)))
@@ -95,7 +157,7 @@ class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
   "fetchApiDefinitions" should {
 
     "call the connector to fetch the API definitions" in new Setup {
-      theConnectorWillReturnTheApiDefinitions
+      theApiDefinitionConnectorWillReturnTheApiDefinitions
 
       await(underTest.fetchApiDefinitions(Some(loggedInUserEmail)))
 
@@ -103,7 +165,7 @@ class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
     }
 
     "return the API definitions" in new Setup {
-      theConnectorWillReturnTheApiDefinitions
+      theApiDefinitionConnectorWillReturnTheApiDefinitions
 
       val result = await(underTest.fetchApiDefinitions(Some(loggedInUserEmail)))
 
@@ -111,7 +173,7 @@ class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
     }
 
     "return the API definitions keeping remote ones first" in new Setup {
-      theConnectorWillReturnTheApiDefinitions
+      theApiDefinitionConnectorWillReturnTheApiDefinitions
       when(mockApiDocumentationConnector.fetchApiDefinitions(any[Option[String]])(any[HeaderCarrier])).thenReturn(Seq(remoteDef))
 
       val result = await(underTest.fetchApiDefinitions(Some(loggedInUserEmail)))
@@ -120,7 +182,7 @@ class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
     }
 
     "fail when the connector fails to return the API definitions" in new Setup {
-      theConnectorWillFailToReturnTheApiDefinitions
+      theApiDefinitionConnectorWillFailToReturnTheApiDefinitions
 
       intercept[RuntimeException] {
         await(underTest.fetchApiDefinitions(Some(loggedInUserEmail)))

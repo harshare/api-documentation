@@ -18,15 +18,17 @@ package uk.gov.hmrc.apidocumentation.connectors
 
 import javax.inject.Inject
 
+import play.api.http.Status.NOT_FOUND
+import play.api.libs.ws.{StreamedResponse, WSClient}
 import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
-import uk.gov.hmrc.apidocumentation.models.ApiDefinition
-import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.apidocumentation.models.{ApiDefinition, ExtendedApiDefinition}
+import uk.gov.hmrc.http.{HeaderCarrier, Upstream4xxResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 
 import scala.concurrent.Future
 
-class ApiDocumentationConnector @Inject()(http: HttpClient, config: ServiceConfiguration) {
+class ApiDocumentationConnector @Inject()(http: HttpClient, ws: WSClient, config: ServiceConfiguration) {
 
 
   val serviceBaseUrl = config.baseUrl("api-documentation")
@@ -44,6 +46,26 @@ class ApiDocumentationConnector @Inject()(http: HttpClient, config: ServiceConfi
     else {
       Future.successful(Seq.empty)
     }
+  }
+
+  def fetchApiDefinition(serviceName: String, email: Option[String] = None)
+                        (implicit hc: HeaderCarrier): Future[Option[ExtendedApiDefinition]] = {
+
+    if(enabled) {
+      http.GET[ExtendedApiDefinition](s"$serviceBaseUrl/apis/$serviceName/definition", queryParams(email))
+        .map(Some(_))
+        .recover {
+          case _ => None
+        }
+    } else {
+      Future.successful(None)
+    }
+  }
+
+  def fetchApiDocumentationResource(serviceName: String, version: String, resource: String)
+                                   (implicit hc: HeaderCarrier): Future[StreamedResponse] = {
+
+    ws.url(s"$serviceBaseUrl/apis/$serviceName/$version/$resource").withMethod("GET").stream()
   }
 
   private def queryParams(email: Option[String]) = email.fold(Seq.empty[(String, String)])(e => Seq("email" -> e))

@@ -49,10 +49,11 @@ package object models {
   implicit val formatApiStatus = EnumJson.enumFormat(ApiStatus)
   implicit val formatApiAccessType = EnumJson.enumFormat(ApiAccessType)
   implicit val formatApiAccess = Json.format[ApiAccess]
-  implicit val formatVersionVisibility = Json.format[VersionVisibility]
   implicit val formatParameter = Json.format[Parameter]
   implicit val formatEndpoint = Json.format[Endpoint]
   implicit val formatApiVersion = Json.format[ApiVersion]
   implicit val formatApiDefinition = Json.format[ApiDefinition]
+  implicit val formatApiAvailability = Json.format[ApiAvailability]
+  implicit val formatExtApiVersion = Json.format[ExtendedApiVersion]
   implicit val formatExtApiDefinition = Json.format[ExtendedApiDefinition]
 }

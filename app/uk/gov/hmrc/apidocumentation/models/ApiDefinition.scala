@@ -51,10 +51,23 @@ case class ApiDefinition(serviceName: String,
   }
 }
 
-case class ApiVersion(version: String, access: Option[ApiAccess], status: ApiStatus, endpoints: Seq[Endpoint])
-
-case class ExtendedApiDefinition(apiDefinition: ApiDefinition, versionAccess: Map[String, VersionVisibility])
-
-case class VersionVisibility(privacy: ApiAccessType.ApiAccessType, loggedIn: Boolean, authorised: Boolean)
+case class ApiVersion(version: String, access: Option[ApiAccess], status: ApiStatus, endpoints: Seq[Endpoint], endpointsEnabled: Boolean)
 
 case class Endpoint(endpointName: String, uriPattern: String, method: HttpMethod, queryParameters: Option[Seq[Parameter]] = None)
+
+case class ExtendedApiDefinition(serviceName: String,
+                                 serviceBaseUrl: String,
+                                 name: String,
+                                 description: String,
+                                 context: String,
+                                 requiresTrust: Boolean,
+                                 isTestSupport: Boolean,
+                                 versions: Seq[ExtendedApiVersion])
+
+case class ExtendedApiVersion(version: String,
+                              status: ApiStatus,
+                              endpoints: Seq[Endpoint],
+                              productionAvailability: Option[ApiAvailability],
+                              sandboxAvailability: Option[ApiAvailability])
+
+case class ApiAvailability(endpointsEnabled: Boolean, access: ApiAccess, loggedIn: Boolean, authorised: Boolean)

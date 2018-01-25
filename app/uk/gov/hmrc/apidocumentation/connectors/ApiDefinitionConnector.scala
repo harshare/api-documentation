@@ -18,9 +18,10 @@ package uk.gov.hmrc.apidocumentation.connectors
 
 import javax.inject.Inject
 
+import play.api.http.Status.NOT_FOUND
 import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
 import uk.gov.hmrc.apidocumentation.models.{ApiDefinition, ExtendedApiDefinition}
-import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.{HeaderCarrier, Upstream4xxResponse}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 
@@ -37,9 +38,13 @@ class ApiDefinitionConnector @Inject()(http: HttpClient, config: ServiceConfigur
   }
 
   def fetchApiDefinition(serviceName: String, email: Option[String] = None)
-                        (implicit hc: HeaderCarrier): Future[ExtendedApiDefinition] = {
+                        (implicit hc: HeaderCarrier): Future[Option[ExtendedApiDefinition]] = {
 
     http.GET[ExtendedApiDefinition](s"$serviceBaseUrl/api-definition/$serviceName/extended", queryParams(email))
+      .map(Some(_))
+      .recover {
+        case Upstream4xxResponse(_, NOT_FOUND, _, _) => None
+      }
   }
 
   private def queryParams(email: Option[String]) = email.fold(Seq.empty[(String,String)])(e => Seq("email" -> e))

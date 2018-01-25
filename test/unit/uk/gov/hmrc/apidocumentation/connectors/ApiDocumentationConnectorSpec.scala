@@ -18,18 +18,24 @@ package uk.gov.hmrc.apidocumentation.connectors
 
 import java.net.URLEncoder
 
+import akka.stream.scaladsl.{FileIO, Source}
+import akka.util.ByteString
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.client.WireMock.{aResponse, get, stubFor, urlEqualTo}
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
+import mockws.MockWS
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
+import play.api.http.HttpEntity
+import play.api.mvc.{Action, ResponseHeader, Result}
 import play.api.{Configuration, Environment}
 import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
+import uk.gov.hmrc.apidocumentation.models.{ApiAccess, ApiAccessType}
 import uk.gov.hmrc.apidocumentation.utils.TestHttpClient
-import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.http.{HeaderCarrier, Upstream5xxResponse}
 import uk.gov.hmrc.play.test.UnitSpec
 
 class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with BeforeAndAfterEach with GuiceOneAppPerSuite with MockitoSugar {
@@ -41,6 +47,20 @@ class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with Befo
   val wireMockServer = new WireMockServer(WireMockConfiguration.wireMockConfig().port(apiDocumentationPort))
   val loggedInUserEmail = "john.doe@example.com"
   val encodedLoggedInUserMail = URLEncoder.encode(loggedInUserEmail, "UTF-8")
+  val serviceName = "hello"
+  val version = "1.0"
+  val streamedResourceUrl = s"$apiDocumentationUrl/apis/$serviceName/$version/resource"
+  val file = new java.io.File("hello")
+  val path: java.nio.file.Path = file.toPath
+  val source: Source[ByteString, _] = FileIO.fromPath(path)
+
+  val mockWs = MockWS {
+    case ("GET", `streamedResourceUrl`) => Action(Result(
+      header = ResponseHeader(200, Map("Content-length"-> s"${file.length()}")),
+      body = HttpEntity.Streamed(source, Some(file.length()), Some("application/pdf"))
+    ))
+  }
+
 
   class TestServiceConfiguration(bool: Boolean = true) extends ServiceConfiguration(mock[Configuration], mock[Environment]) {
     override def baseUrl(serviceName: String): String = apiDocumentationUrl
@@ -50,7 +70,7 @@ class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with Befo
 
   trait Setup {
     implicit val hc = HeaderCarrier()
-    val connector = new ApiDocumentationConnector(new TestHttpClient(), new TestServiceConfiguration)
+    val connector = new ApiDocumentationConnector(new TestHttpClient(), mockWs, new TestServiceConfiguration)
   }
 
   override def beforeEach() {
@@ -105,11 +125,47 @@ class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with Befo
     }
     
     "return an empty Sequence if the remote call is disabled" in new Setup {
-     override val connector = new ApiDocumentationConnector(new TestHttpClient(), new TestServiceConfiguration(false))
+     override val connector = new ApiDocumentationConnector(new TestHttpClient(), mockWs, new TestServiceConfiguration(false))
 
       val result = await(connector.fetchApiDefinitions(Some(loggedInUserEmail)))
 
       result.size shouldBe 0
+    }
+  }
+
+  "fetchApiDefinition" should {
+
+    "return a fetched API Definition" in new Setup {
+      val serviceName = "calendar"
+      stubFor(get(urlEqualTo(s"/apis/$serviceName/definition"))
+        .willReturn(aResponse().withStatus(200).withBody(extendedApiDefinitionJson("Calendar"))))
+
+      val result = await(connector.fetchApiDefinition(serviceName))
+      result.get.name shouldBe "Calendar"
+      result.get.versions should have size 2
+      result.get.versions map (_.productionAvailability.map(_.access)) shouldBe
+        Seq(Some(ApiAccess(ApiAccessType.PUBLIC)), Some(ApiAccess(ApiAccessType.PRIVATE)))
+    }
+
+    "return a fetched API Definition when queried by email" in new Setup {
+      val serviceName = "calendar"
+      stubFor(get(urlEqualTo(s"/apis/$serviceName/definition?email=$encodedLoggedInUserMail"))
+        .willReturn(aResponse().withStatus(200).withBody(extendedApiDefinitionJson("Calendar"))))
+
+      val result = await(connector.fetchApiDefinition(serviceName, Some(loggedInUserEmail)))
+      result.get.name shouldBe "Calendar"
+      result.get.versions should have size 2
+      result.get.versions map (_.productionAvailability.map(_.access)) shouldBe
+        Seq(Some(ApiAccess(ApiAccessType.PUBLIC)), Some(ApiAccess(ApiAccessType.PRIVATE)))
+    }
+
+    "return None if the remote service responds with an error" in new Setup {
+      val serviceName = "calendar"
+      stubFor(get(urlEqualTo(s"/apis/$serviceName/definition"))
+        .willReturn(aResponse().withStatus(500)))
+
+      val result = await(connector.fetchApiDefinition(serviceName))
+      result shouldBe None
     }
   }
 
@@ -136,7 +192,8 @@ class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with Befo
        |          "authType" : "NONE",
        |          "throttlingTier" : "UNLIMITED"
        |        }
-       |      ]
+       |      ],
+       |      "endpointsEnabled": true
        |    },
        |    {
        |      "version" : "2.0",
@@ -150,10 +207,69 @@ class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with Befo
        |          "throttlingTier" : "UNLIMITED",
        |          "scope": "read:hello"
        |        }
-       |      ]
+       |      ],
+       |      "endpointsEnabled": true
        |    }
        |  ]
        |}""".stripMargin.replaceAll("\n", " ")
   }
 
+  private def extendedApiDefinitionJson(name: String) = {
+    s"""{
+       |  "name" : "$name",
+       |  "description" : "Test API",
+       |  "context" : "test",
+       |  "serviceBaseUrl" : "http://test",
+       |  "serviceName" : "test",
+       |  "requiresTrust": false,
+       |  "isTestSupport": false,
+       |  "versions" : [
+       |    {
+       |      "version" : "1.0",
+       |      "status" : "STABLE",
+       |      "endpoints" : [
+       |        {
+       |          "uriPattern" : "/hello",
+       |          "endpointName" : "Say Hello Publicly",
+       |          "method" : "GET",
+       |          "authType" : "NONE",
+       |          "throttlingTier" : "UNLIMITED"
+       |        }
+       |      ],
+       |      "productionAvailability": {
+       |        "endpointsEnabled": true,
+       |        "access": {
+       |          "type": "PUBLIC"
+       |        },
+       |        "loggedIn": false,
+       |        "authorised": true
+       |      }
+       |    },
+       |    {
+       |      "version" : "2.0",
+       |      "status" : "STABLE",
+       |      "endpoints" : [
+       |        {
+       |          "uriPattern" : "/hello",
+       |          "endpointName" : "Say Hello Privately",
+       |          "method" : "GET",
+       |          "authType" : "NONE",
+       |          "throttlingTier" : "UNLIMITED",
+       |          "scope": "read:hello"
+       |        }
+       |      ],
+       |      "productionAvailability": {
+       |        "endpointsEnabled": true,
+       |        "access" : {
+       |          "type" : "PRIVATE",
+       |          "whitelistedApplicationIds" : ["app-id-1","app-id-2"]
+       |        },
+       |        "loggedIn": false,
+       |        "authorised": true
+       |      }
+       |    }
+       |  ]
+       |}
+     """.stripMargin
+  }
 }

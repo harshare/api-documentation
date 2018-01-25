@@ -28,7 +28,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
-import uk.gov.hmrc.apidocumentation.models.{ApiAccess, ApiAccessType, VersionVisibility}
+import uk.gov.hmrc.apidocumentation.models.{ApiAccess, ApiAccessType}
 import uk.gov.hmrc.apidocumentation.utils.TestHttpClient
 import uk.gov.hmrc.http.{HeaderCarrier, Upstream5xxResponse}
 import uk.gov.hmrc.play.test.UnitSpec
@@ -68,9 +68,10 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
         .willReturn(aResponse().withStatus(200).withBody(extendedApiDefinitionJson("Calendar"))))
 
       val result = await(connector.fetchApiDefinition(serviceName))
-      result.apiDefinition.name shouldBe "Calendar"
-      result.versionAccess should have size 2
-      result.versionAccess("1.0") shouldBe VersionVisibility(ApiAccessType.PUBLIC, false, true)
+      result.get.name shouldBe "Calendar"
+      result.get.versions should have size 2
+      result.get.versions map (_.productionAvailability.map(_.access)) shouldBe
+        Seq(Some(ApiAccess(ApiAccessType.PUBLIC)), Some(ApiAccess(ApiAccessType.PRIVATE)))
     }
 
     "return a fetched API Definition when queried by email" in new Setup {
@@ -79,25 +80,23 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
         .willReturn(aResponse().withStatus(200).withBody(extendedApiDefinitionJson("Calendar"))))
 
       val result = await(connector.fetchApiDefinition(serviceName, Some(loggedInUserEmail)))
-      result.apiDefinition.name shouldBe "Calendar"
-      result.versionAccess should have size 2
-      result.versionAccess("1.0") shouldBe VersionVisibility(ApiAccessType.PUBLIC, false, true)
+      result.get.name shouldBe "Calendar"
+      result.get.versions should have size 2
+      result.get.versions map (_.productionAvailability.map(_.access)) shouldBe
+        Seq(Some(ApiAccess(ApiAccessType.PUBLIC)), Some(ApiAccess(ApiAccessType.PRIVATE)))
     }
 
     "return a fetched API Definition with access levels" in new Setup {
       val serviceName = "calendar"
       stubFor(get(urlEqualTo(s"/api-definition/$serviceName/extended"))
-        .willReturn(aResponse().withStatus(200).withBody(extendedApiDefinitionWithAccessJson("Hello with access levels"))))
+        .willReturn(aResponse().withStatus(200).withBody(extendedApiDefinitionJson("Hello with access levels"))))
 
       val result = await(connector.fetchApiDefinition(serviceName))
-      result.apiDefinition.name shouldBe "Hello with access levels"
-      result.apiDefinition.versions.size shouldBe 2
-      result.apiDefinition.versions map (_.access) shouldBe
+      result shouldBe defined
+      result.get.name shouldBe "Hello with access levels"
+      result.get.versions should have size 2
+      result.get.versions map (_.productionAvailability.map(_.access)) shouldBe
         Seq(Some(ApiAccess(ApiAccessType.PUBLIC)), Some(ApiAccess(ApiAccessType.PRIVATE)))
-
-      result.versionAccess should have size 2
-      result.versionAccess("2.0") shouldBe VersionVisibility(ApiAccessType.PRIVATE, false, false)
-
     }
 
     "throw an http-verbs Upstream5xxResponse exception if the API Definition service responds with an error" in new Setup {
@@ -160,21 +159,60 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
   }
 
   private def extendedApiDefinitionJson(name: String) = {
-    val definition = apiDefinitionJson(name)
     s"""{
-       |  "apiDefinition": $definition,
-       |  "versionAccess": {
-       |    "1.0": {
-       |      "privacy": "PUBLIC",
-       |      "loggedIn": false,
-       |      "authorised": true
+       |  "name" : "$name",
+       |  "description" : "Test API",
+       |  "context" : "test",
+       |  "serviceBaseUrl" : "http://test",
+       |  "serviceName" : "test",
+       |  "requiresTrust": false,
+       |  "isTestSupport": false,
+       |  "versions" : [
+       |    {
+       |      "version" : "1.0",
+       |      "status" : "STABLE",
+       |      "endpoints" : [
+       |        {
+       |          "uriPattern" : "/hello",
+       |          "endpointName" : "Say Hello Publicly",
+       |          "method" : "GET",
+       |          "authType" : "NONE",
+       |          "throttlingTier" : "UNLIMITED"
+       |        }
+       |      ],
+       |      "productionAvailability": {
+       |        "endpointsEnabled": true,
+       |        "access": {
+       |          "type": "PUBLIC"
+       |        },
+       |        "loggedIn": false,
+       |        "authorised": true
+       |      }
        |    },
-       |    "2.0": {
-       |      "privacy": "PUBLIC",
-       |      "loggedIn": false,
-       |      "authorised": true
+       |    {
+       |      "version" : "2.0",
+       |      "status" : "STABLE",
+       |      "endpoints" : [
+       |        {
+       |          "uriPattern" : "/hello",
+       |          "endpointName" : "Say Hello Privately",
+       |          "method" : "GET",
+       |          "authType" : "NONE",
+       |          "throttlingTier" : "UNLIMITED",
+       |          "scope": "read:hello"
+       |        }
+       |      ],
+       |      "productionAvailability": {
+       |        "endpointsEnabled": true,
+       |        "access" : {
+       |          "type" : "PRIVATE",
+       |          "whitelistedApplicationIds" : ["app-id-1","app-id-2"]
+       |        },
+       |        "loggedIn": false,
+       |        "authorised": true
+       |      }
        |    }
-       |  }
+       |  ]
        |}
      """.stripMargin
   }
@@ -198,7 +236,8 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
         |          "authType" : "NONE",
         |          "throttlingTier" : "UNLIMITED"
         |        }
-        |      ]
+        |      ],
+        |      "endpointsEnabled": true
         |    },
         |    {
         |      "version" : "2.0",
@@ -212,69 +251,10 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
         |          "throttlingTier" : "UNLIMITED",
         |          "scope": "read:hello"
         |        }
-        |      ]
+        |      ],
+        |      "endpointsEnabled": true
         |    }
         |  ]
-        |}""".stripMargin.replaceAll("\n", " ")
-  }
-
-  private def extendedApiDefinitionWithAccessJson(name: String) = {
-    s"""{
-        |  "apiDefinition": {
-        |    "name" : "$name",
-        |    "description" : "Test API",
-        |    "context" : "test",
-        |    "serviceBaseUrl" : "http://test",
-        |    "serviceName" : "test",
-        |    "versions" : [
-        |      {
-        |        "version" : "1.0",
-        |        "access" : {
-        |          "type" : "PUBLIC"
-        |        },
-        |        "status" : "STABLE",
-        |        "endpoints" : [
-        |          {
-        |            "uriPattern" : "/hello",
-        |            "endpointName" : "Say Hello Publicly",
-        |            "method" : "GET",
-        |            "authType" : "NONE",
-        |            "throttlingTier" : "UNLIMITED"
-        |          }
-        |        ]
-        |      },
-        |      {
-        |        "version" : "2.0",
-        |        "access" : {
-        |          "type" : "PRIVATE",
-        |          "whitelistedApplicationIds" : ["app-id-1","app-id-2"]
-        |        },
-        |        "status" : "STABLE",
-        |        "endpoints" : [
-        |          {
-        |            "uriPattern" : "/hello",
-        |            "endpointName" : "Say Hello Privately",
-        |            "method" : "GET",
-        |            "authType" : "NONE",
-        |            "throttlingTier" : "UNLIMITED",
-        |            "scope": "read:hello"
-        |          }
-        |        ]
-        |      }
-        |    ]
-        |  },
-        |  "versionAccess": {
-        |    "1.0": {
-        |      "privacy": "PUBLIC",
-        |      "loggedIn": false,
-        |      "authorised": true
-        |    },
-        |    "2.0": {
-        |      "privacy": "PRIVATE",
-        |      "loggedIn": false,
-        |      "authorised": false
-        |    }
-        |  }
         |}""".stripMargin.replaceAll("\n", " ")
   }
 }
