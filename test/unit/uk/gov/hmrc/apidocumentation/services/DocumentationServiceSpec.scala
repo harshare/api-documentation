@@ -98,16 +98,16 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
       verifyZeroInteractions(mockApiDocumentationConnector)
     }
 
-    "return the resource fetched from remote API documentation service when the API version exists in sandbox and production" in new Setup {
+    "return the resource fetched from local microservice when the API version exists in sandbox and production" in new Setup {
       theApiDefinitionWillBeReturned
-      theApiDocumentationServiceWillReturnTheResource(streamedResource)
+      theApiMicroserviceWillReturnTheResource(streamedResource)
 
       val result = await(underTest.fetchApiDocumentationResource(serviceName, "2.0", "resource")(hc))
 
       result.header.status should be(200)
       verify(mockApiDefinitionService).fetchApiDefinition(eqTo(serviceName), any[Option[String]])(any[HeaderCarrier])
-      verify(mockApiDocumentationConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("2.0"), eqTo("resource"))(any[HeaderCarrier])
-      verifyZeroInteractions(mockApiMicroserviceConnector)
+      verify(mockApiMicroserviceConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("2.0"), eqTo("resource"))(any[HeaderCarrier])
+      verifyZeroInteractions(mockApiDocumentationConnector)
     }
 
     "return the resource fetched from remote API documentation service when the API version exists in sandbox only" in new Setup {
@@ -160,7 +160,7 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
       theApiDocumentationServiceWillReturnTheResource(notFoundResource)
 
       intercept[NotFoundException] {
-        await(underTest.fetchApiDocumentationResource(serviceName, "2.0", "resourceNotThere")(hc))
+        await(underTest.fetchApiDocumentationResource(serviceName, "3.0", "resourceNotThere")(hc))
       }
     }
 
@@ -178,7 +178,7 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
       theApiDocumentationServiceWillReturnTheResource(internalServerErrorResource)
 
       intercept[InternalServerException] {
-        await(underTest.fetchApiDocumentationResource(serviceName, "2.0", "resourceNotThere")(hc))
+        await(underTest.fetchApiDocumentationResource(serviceName, "3.0", "resourceNotThere")(hc))
       }
     }
 
