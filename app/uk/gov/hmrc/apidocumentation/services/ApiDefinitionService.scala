@@ -19,7 +19,7 @@ package uk.gov.hmrc.apidocumentation.services
 import javax.inject.Inject
 
 import uk.gov.hmrc.apidocumentation.connectors.{ApiDefinitionConnector, ApiDocumentationConnector}
-import uk.gov.hmrc.apidocumentation.models.ApiDefinition
+import uk.gov.hmrc.apidocumentation.models.{ApiDefinition, ExtendedApiDefinition, ExtendedApiVersion}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 
@@ -37,7 +37,49 @@ class ApiDefinitionService @Inject()(apiDefinitionConnector: ApiDefinitionConnec
   }
 
 
-  def fetchApiDefinition(serviceName: String, thirdPartyDeveloperEmail: Option[String])(implicit hc: HeaderCarrier) = {
-    apiDefinitionConnector.fetchApiDefinition(serviceName, thirdPartyDeveloperEmail)
+  def fetchApiDefinition(serviceName: String, thirdPartyDeveloperEmail: Option[String] = None)
+                        (implicit hc: HeaderCarrier): Future[ExtendedApiDefinition] = {
+    val localFuture = apiDefinitionConnector.fetchApiDefinition(serviceName, thirdPartyDeveloperEmail)
+    val remoteFuture = apiDocumentationConnector.fetchApiDefinition(serviceName, thirdPartyDeveloperEmail)
+    for {
+      localDefinition <- localFuture
+      remoteDefinition <- remoteFuture
+    } yield combine(localDefinition, remoteDefinition).get
+  }
+
+  private def combine(maybeLocalDefinition: Option[ExtendedApiDefinition], maybeRemoteDefinition: Option[ExtendedApiDefinition]) = {
+    def findProductionDefinition(maybeLocalDefinition: Option[ExtendedApiDefinition], maybeRemoteDefinition: Option[ExtendedApiDefinition]) = {
+      if(maybeLocalDefinition.exists(_.versions.exists(_.productionAvailability.isDefined))) maybeLocalDefinition
+      else maybeRemoteDefinition
+    }
+
+    def findSandboxDefinition(maybeLocalDefinition: Option[ExtendedApiDefinition], maybeRemoteDefinition: Option[ExtendedApiDefinition]) = {
+      if(maybeLocalDefinition.exists(_.versions.exists(_.sandboxAvailability.isDefined))) maybeLocalDefinition
+      else maybeRemoteDefinition
+    }
+
+    def combineVersion(maybeProductionVersion: Option[ExtendedApiVersion], maybeSandboxVersion: Option[ExtendedApiVersion]) = {
+      maybeProductionVersion.fold(maybeSandboxVersion){ productionVersion =>
+        maybeSandboxVersion.fold(maybeProductionVersion){ sandboxVersion =>
+          Some(sandboxVersion.copy(productionAvailability = productionVersion.productionAvailability))
+        }
+      }
+    }
+
+    def combineVersions(productionVersions: Seq[ExtendedApiVersion], sandboxVersions: Seq[ExtendedApiVersion]): Seq[ExtendedApiVersion] = {
+      val allVersions = (productionVersions.map(_.version) ++ sandboxVersions.map(_.version)).distinct.sorted
+      allVersions.flatMap { version =>
+        combineVersion(productionVersions.find(_.version == version), sandboxVersions.find(_.version == version))
+      }
+    }
+
+    val maybeProductionDefinition = findProductionDefinition(maybeLocalDefinition, maybeRemoteDefinition)
+    val maybeSandboxDefinition = findSandboxDefinition(maybeLocalDefinition, maybeRemoteDefinition)
+
+    maybeProductionDefinition.fold(maybeSandboxDefinition){ productionDefinition =>
+      maybeSandboxDefinition.fold(maybeProductionDefinition){ sandboxDefinition =>
+        Some(sandboxDefinition.copy(versions = combineVersions(productionDefinition.versions, sandboxDefinition.versions)))
+      }
+    }
   }
 }

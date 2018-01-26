@@ -18,109 +18,184 @@ package uk.gov.hmrc.apidocumentation.services
 
 import akka.stream.scaladsl.{FileIO, Source}
 import akka.util.ByteString
-import mockws.MockWS
+import org.apache.http.HttpStatus
+import org.mockito.Mockito.{verify, verifyZeroInteractions, when}
 import org.mockito.ArgumentMatchers.{any, anyString, eq => eqTo}
-import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
-import play.api.http.HttpEntity
-import play.api.mvc.{Action, ResponseHeader, Result, Results}
-import uk.gov.hmrc.apidocumentation.connectors.ServiceLocatorConnector
-import uk.gov.hmrc.apidocumentation.models.ServiceDetails
-import uk.gov.hmrc.http.{HeaderCarrier, InternalServerException, NotFoundException, Upstream4xxResponse}
+import play.api.http.{HttpEntity, Status}
+import play.api.libs.ws.{DefaultWSResponseHeaders, StreamedResponse, WSResponseHeaders}
+import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
+import uk.gov.hmrc.apidocumentation.connectors.{ApiDocumentationConnector, ApiMicroserviceConnector}
+import uk.gov.hmrc.apidocumentation.models.{ApiAccess, ApiAccessType, ApiAvailability, ApiStatus, ExtendedApiDefinition, ExtendedApiVersion}
+import uk.gov.hmrc.http.{HeaderCarrier, InternalServerException, NotFoundException}
 import uk.gov.hmrc.play.test.UnitSpec
 
 import scala.concurrent.Future
 
 class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSugar {
 
-  val serviceUrl = "http://api-example-microservice.protected.mdtp"
-
   val serviceName = "hello-world"
   val version = "1.0"
-  val resourceFoundUrl = s"$serviceUrl/api/conf/$version/resource"
-  val streamedResourceUrl = s"$serviceUrl/api/conf/$version/streamedResource"
-  val resourceNotFoundUrl = s"$serviceUrl/api/conf/$version/resourceNotThere"
-  val serviceUnavailableUrl = s"$serviceUrl/api/conf/$version/resourceInvalid"
-  val timeoutUrl = s"$serviceUrl/api/conf/$version/timeout"
-  val serviceLocatorConnector = mock[ServiceLocatorConnector]
-
+  val productionV1Availability = ApiAvailability(endpointsEnabled = true, ApiAccess(ApiAccessType.PRIVATE), loggedIn = false, authorised = false)
+  val productionV2Availability = ApiAvailability(endpointsEnabled = true, ApiAccess(ApiAccessType.PRIVATE), loggedIn = false, authorised = false)
+  val sandboxV2Availability = ApiAvailability(endpointsEnabled = true, ApiAccess(ApiAccessType.PUBLIC), loggedIn = false, authorised = false)
+  val sandboxV3Availability = ApiAvailability(endpointsEnabled = false, ApiAccess(ApiAccessType.PUBLIC), loggedIn = false, authorised = false)
+  val apiDefinition = ExtendedApiDefinition(serviceName, "http://hello.protected.mdtp", "Hello World", "Example", "hello",
+    requiresTrust = false, isTestSupport = false, Seq(
+      ExtendedApiVersion("1.0", ApiStatus.STABLE, Seq.empty, Some(productionV1Availability), None),
+      ExtendedApiVersion("2.0", ApiStatus.BETA, Seq.empty, Some(productionV2Availability), Some(sandboxV2Availability)),
+      ExtendedApiVersion("3.0", ApiStatus.ALPHA, Seq.empty, None, Some(sandboxV3Availability))
+    ))
   val file = new java.io.File("hello")
   val path: java.nio.file.Path = file.toPath
   val source: Source[ByteString, _] = FileIO.fromPath(path)
-  val mockWS = MockWS {
-    case ("GET", `resourceFoundUrl`) => Action(Results.Ok("hello world"))
-    case ("GET", `streamedResourceUrl`) => Action(Result(
-      header = ResponseHeader(200, Map("Content-length"-> s"${file.length()}")),
-      body = HttpEntity.Streamed(source, Some(file.length()), Some("application/pdf"))
-    ))
-    case ("GET", `resourceNotFoundUrl`) => Action(Results.NotFound)
-    case ("GET", `serviceUnavailableUrl`) => Action(Results.ServiceUnavailable)
-    case ("GET", `timeoutUrl`) => Action(Results.RequestTimeout)
-  }
+  val streamedResource = StreamedResponse(DefaultWSResponseHeaders(Status.OK, Map("Content-Type" -> Seq("application/text"))), source)
+  val chunkedResource = StreamedResponse(DefaultWSResponseHeaders(Status.OK, Map.empty), source)
+  val notFoundResource = StreamedResponse(DefaultWSResponseHeaders(Status.NOT_FOUND, Map.empty), source)
+  val internalServerErrorResource = StreamedResponse(DefaultWSResponseHeaders(Status.INTERNAL_SERVER_ERROR, Map.empty), source)
 
   trait Setup {
     implicit val hc = HeaderCarrier()
-    val underTest = new DocumentationService(serviceLocatorConnector, mockWS)
-    def serviceLocatorWillReturnTheServiceDetails = {
-      when(serviceLocatorConnector.lookupService(anyString)(any[HeaderCarrier]))
-        .thenReturn(Future.successful(ServiceDetails(serviceName, serviceUrl)))
+
+    val mockApiDefinitionService = mock[ApiDefinitionService]
+    val mockApiMicroserviceConnector = mock[ApiMicroserviceConnector]
+    val mockApiDocumentationConnector = mock[ApiDocumentationConnector]
+    val mockServiceConfig = mock[ServiceConfiguration]
+
+    val underTest = new DocumentationService(mockApiDefinitionService, mockApiMicroserviceConnector,
+      mockApiDocumentationConnector, mockServiceConfig)
+
+    def theServiceIsRunningInSandboxMode = when(mockServiceConfig.isSandbox).thenReturn(true)
+
+    def theApiDefinitionWillBeReturned = {
+      when(mockApiDefinitionService.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(apiDefinition))
     }
 
-    def serviceLocatorWillFailToReturnTheServiceDetails = {
-      when(serviceLocatorConnector.lookupService(anyString)(any[HeaderCarrier]))
-        .thenReturn(Future.failed(Upstream4xxResponse("Not found", 404, 404)))
+    def theApiMicroserviceWillReturnTheResource(response: StreamedResponse) = {
+      when(mockApiMicroserviceConnector.fetchApiDocumentationResource(anyString, anyString, anyString)(any[HeaderCarrier]))
+        .thenReturn(Future.successful(response))
     }
 
+    def theApiDocumentationServiceWillReturnTheResource(response: StreamedResponse) = {
+      when(mockApiDocumentationConnector.fetchApiDocumentationResource(anyString, anyString, anyString)(any[HeaderCarrier]))
+        .thenReturn(Future.successful(response))
+    }
   }
 
   "DocumentationService" should {
 
-    "ask service locator for the service URL" in new Setup {
-      serviceLocatorWillReturnTheServiceDetails
-
-      val result = await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resource")(hc))
-
-      verify(serviceLocatorConnector).lookupService(eqTo(serviceName))(any[HeaderCarrier])
-    }
-
-    "return the resource" in new Setup {
-      serviceLocatorWillReturnTheServiceDetails
+    "return the resource fetched from local microservice when the API version exists in production only" in new Setup {
+      theApiDefinitionWillBeReturned
+      theApiMicroserviceWillReturnTheResource(streamedResource)
 
       val result = await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resource")(hc))
 
       result.header.status should be(200)
-
+      verify(mockApiDefinitionService).fetchApiDefinition(eqTo(serviceName), any[Option[String]])(any[HeaderCarrier])
+      verify(mockApiMicroserviceConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("1.0"), eqTo("resource"))(any[HeaderCarrier])
+      verifyZeroInteractions(mockApiDocumentationConnector)
     }
 
-    "fail when service locator does not find the service URL" in new Setup {
-      serviceLocatorWillFailToReturnTheServiceDetails
+    "return the resource fetched from remote API documentation service when the API version exists in sandbox and production" in new Setup {
+      theApiDefinitionWillBeReturned
+      theApiDocumentationServiceWillReturnTheResource(streamedResource)
 
-      intercept[Upstream4xxResponse] {
-        await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resourceNotThere")(hc))
+      val result = await(underTest.fetchApiDocumentationResource(serviceName, "2.0", "resource")(hc))
+
+      result.header.status should be(200)
+      verify(mockApiDefinitionService).fetchApiDefinition(eqTo(serviceName), any[Option[String]])(any[HeaderCarrier])
+      verify(mockApiDocumentationConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("2.0"), eqTo("resource"))(any[HeaderCarrier])
+      verifyZeroInteractions(mockApiMicroserviceConnector)
+    }
+
+    "return the resource fetched from remote API documentation service when the API version exists in sandbox only" in new Setup {
+      theApiDefinitionWillBeReturned
+      theApiDocumentationServiceWillReturnTheResource(streamedResource)
+
+      val result = await(underTest.fetchApiDocumentationResource(serviceName, "3.0", "resource")(hc))
+
+      result.header.status should be(200)
+      verify(mockApiDefinitionService).fetchApiDefinition(eqTo(serviceName), any[Option[String]])(any[HeaderCarrier])
+      verify(mockApiDocumentationConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("3.0"), eqTo("resource"))(any[HeaderCarrier])
+      verifyZeroInteractions(mockApiMicroserviceConnector)
+    }
+
+    "return the resource fetched from local API microservice when the API version exists in sandbox only and isSandbox flag is set" in new Setup {
+      theServiceIsRunningInSandboxMode
+      theApiDefinitionWillBeReturned
+      theApiMicroserviceWillReturnTheResource(streamedResource)
+
+      val result = await(underTest.fetchApiDocumentationResource(serviceName, "3.0", "resource")(hc))
+
+      result.header.status should be(200)
+      verify(mockApiDefinitionService).fetchApiDefinition(eqTo(serviceName), any[Option[String]])(any[HeaderCarrier])
+      verify(mockApiMicroserviceConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("3.0"), eqTo("resource"))(any[HeaderCarrier])
+      verifyZeroInteractions(mockApiDocumentationConnector)
+    }
+
+    "return the resource with given Content-Type when header is present" in new Setup {
+      theApiDefinitionWillBeReturned
+      theApiMicroserviceWillReturnTheResource(streamedResource)
+
+      val result = await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resource")(hc))
+
+      result.header.status should be(200)
+      result.body.contentType should be(Some("application/text"))
+    }
+
+    "return the resource with default Content-Type when header is not present" in new Setup {
+      theApiDefinitionWillBeReturned
+      theApiMicroserviceWillReturnTheResource(chunkedResource)
+
+      val result = await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resource")(hc))
+
+      result.header.status should be(200)
+      result.body.contentType should be(Some("application/octet-stream"))
+    }
+
+    "fail when resource not found from API Documentation service" in new Setup {
+      theApiDefinitionWillBeReturned
+      theApiDocumentationServiceWillReturnTheResource(notFoundResource)
+
+      intercept[NotFoundException] {
+        await(underTest.fetchApiDocumentationResource(serviceName, "2.0", "resourceNotThere")(hc))
       }
     }
 
-    "fail when resource not found" in new Setup {
-      serviceLocatorWillReturnTheServiceDetails
+    "fail when resource not found from local API microservice" in new Setup {
+      theApiDefinitionWillBeReturned
+      theApiMicroserviceWillReturnTheResource(notFoundResource)
 
       intercept[NotFoundException] {
         await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resourceNotThere")(hc))
       }
     }
 
-    "return streamed resource" in new Setup {
-      serviceLocatorWillReturnTheServiceDetails
-      val result = await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "streamedResource")(hc))
-
-      result.header.status should be(200)
-    }
-
-    "fail when the service does not return the resource" in new Setup {
-      serviceLocatorWillReturnTheServiceDetails
+    "fail when API Documentation service returns an internal server error" in new Setup {
+      theApiDefinitionWillBeReturned
+      theApiDocumentationServiceWillReturnTheResource(internalServerErrorResource)
 
       intercept[InternalServerException] {
-        await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resourceInvalid")(hc))
+        await(underTest.fetchApiDocumentationResource(serviceName, "2.0", "resourceNotThere")(hc))
+      }
+    }
+
+    "fail when local API microservice returns an internal server error" in new Setup {
+      theApiDefinitionWillBeReturned
+      theApiMicroserviceWillReturnTheResource(internalServerErrorResource)
+
+      intercept[InternalServerException] {
+        await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resourceNotThere")(hc))
+      }
+    }
+
+    "fail when API version is not found" in new Setup {
+      theApiDefinitionWillBeReturned
+
+      intercept[IllegalArgumentException] {
+        await(underTest.fetchApiDocumentationResource(serviceName, "4.0", "resource")(hc))
       }
     }
   }

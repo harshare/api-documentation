@@ -23,4 +23,6 @@ import uk.gov.hmrc.play.config.ServicesConfig
 
 class ServiceConfiguration @Inject() (override val runModeConfiguration: Configuration, environment: Environment) extends ServicesConfig {
   override protected def mode = environment.mode
+
+  lazy val isSandbox = runModeConfiguration.getBoolean("isSandbox").getOrElse(false)
 }
