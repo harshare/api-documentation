@@ -28,15 +28,19 @@ import mockws.MockWS
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
+import org.mockito.Mockito._
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.http.HttpEntity
 import play.api.mvc.{Action, ResponseHeader, Result}
 import play.api.{Configuration, Environment}
+import play.api.libs.ws.WSClient
+import play.api.{Configuration, Environment, Mode}
 import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
 import uk.gov.hmrc.apidocumentation.models.{ApiAccess, ApiAccessType}
 import uk.gov.hmrc.apidocumentation.utils.TestHttpClient
 import uk.gov.hmrc.http.{HeaderCarrier, Upstream5xxResponse}
 import uk.gov.hmrc.apidocumentation.utils.ProxyTestHttpClient
+import uk.gov.hmrc.apidocumentation.utils.{ProxyTestHttpClient, TestAuditConnector}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 
@@ -64,15 +68,18 @@ class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with Befo
   }
 
 
-  class TestServiceConfiguration(bool: Boolean = true) extends ServiceConfiguration(mock[Configuration], mock[Environment]) {
+  class TestServiceConfiguration(bool: Boolean = true) extends ServiceConfiguration(app.injector.instanceOf[Configuration], app.injector.instanceOf[Environment]) {
     override def baseUrl(serviceName: String): String = apiDocumentationUrl
+
+    override def getString(key: String): String = "BEARER"
 
     override def getConfBool(confKey: String, defBool: => Boolean): Boolean = bool
   }
 
   trait Setup {
     implicit val hc = HeaderCarrier()
-    val connector = new ApiDocumentationConnector(new TestHttpClient(), mockWs, new TestServiceConfiguration)
+    private val testServiceConfiguration = new TestServiceConfiguration
+    val connector = new ApiDocumentationConnector(new ProxyTestHttpClient(testServiceConfiguration, new TestAuditConnector, app.injector.instanceOf[WSClient]),mockWs, testServiceConfiguration)
   }
 
   override def beforeEach() {
@@ -127,7 +134,8 @@ class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with Befo
     }
 
     "return an empty Sequence if the remote call is disabled" in new Setup {
-     override val connector = new ApiDocumentationConnector(new TestHttpClient(), mockWs, new TestServiceConfiguration(false))
+      private val configuration = new TestServiceConfiguration(false)
+      override val connector = new ApiDocumentationConnector(new ProxyTestHttpClient(configuration, new TestAuditConnector, app.injector.instanceOf[WSClient]),mockWs, configuration)
 
       val result = await(connector.fetchApiDefinitions(Some(loggedInUserEmail)))
 
