@@ -42,7 +42,7 @@ class ApiDefinitionControllerSpec extends UnitSpec with ScalaFutures with Mockit
     )
     val apiDefinition = ExtendedApiDefinition(serviceName, "http://hello.protected.mdtp", "Hello World", "Example", "hello",
       requiresTrust = false, isTestSupport = false, Seq(ExtendedApiVersion("1.0", ApiStatus.ALPHA, Seq.empty,
-        Some(ApiAvailability(endpointsEnabled = true, ApiAccess(ApiAccessType.PUBLIC), loggedIn = false, authorised = false)), None)))
+        Some(ApiAvailability(endpointsEnabled = true, ApiAccess(ApiAccessType.PUBLIC, None), loggedIn = false, authorised = false)), None)))
 
     implicit val mat = fakeApplication.materializer
     val apiDefinitionService = mock[ApiDefinitionService]
