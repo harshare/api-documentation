@@ -18,6 +18,7 @@ package uk.gov.hmrc.apidocumentation.connectors
 
 import javax.inject.Inject
 
+import play.api.Logger
 import play.api.libs.ws.{StreamedResponse, WSClient}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
@@ -28,6 +29,8 @@ class ApiMicroserviceConnector @Inject()(serviceLocator: ServiceLocatorConnector
 
   def fetchApiDocumentationResource(serviceName: String, version: String, resource: String)(
     implicit hc: HeaderCarrier): Future[StreamedResponse] = {
+
+    Logger.info(s"Calling to local microservice to fetch documentation resource: $serviceName, $version, $resource")
 
     serviceLocator.lookupService(serviceName) flatMap { serviceDetails =>
       ws.url(s"${serviceDetails.serviceUrl}/api/conf/$version/$resource").withMethod("GET").stream()

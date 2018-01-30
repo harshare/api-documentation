@@ -18,6 +18,7 @@ package uk.gov.hmrc.apidocumentation.connectors
 
 import javax.inject.Inject
 
+import play.api.Logger
 import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
 import uk.gov.hmrc.apidocumentation.models.ServiceDetails
 import uk.gov.hmrc.http.HeaderCarrier
@@ -31,6 +32,8 @@ class ServiceLocatorConnector @Inject()(http: HttpClient, config: ServiceConfigu
   val serviceBaseUrl = config.baseUrl("service-locator")
 
   def lookupService(serviceName: String)(implicit hc: HeaderCarrier): Future[ServiceDetails] = {
+    Logger.info(s"Calling service locator for: $serviceName")
+
     http.GET[ServiceDetails](s"$serviceBaseUrl/service/$serviceName")
   }
 }
