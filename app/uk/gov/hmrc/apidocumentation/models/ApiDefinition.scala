@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.apidocumentation.models
 
+import play.api.Configuration
 import uk.gov.hmrc.apidocumentation.models.ApiStatus.ApiStatus
 import uk.gov.hmrc.apidocumentation.models.HttpMethod.HttpMethod
 
@@ -24,8 +25,13 @@ object ApiAccessType extends Enumeration {
   val PRIVATE, PUBLIC = Value
 }
 
-case class ApiAccess(`type`: ApiAccessType.Value)
+case class ApiAccess(`type`: ApiAccessType.Value, whitelistedApplicationIds: Option[Seq[String]])
 
+object ApiAccess {
+  def build(config: Option[Configuration]): ApiAccess = ApiAccess(
+    `type` = ApiAccessType.PRIVATE,
+    whitelistedApplicationIds = config.flatMap(_.getStringSeq("whitelistedApplicationIds")).orElse(Some(Seq.empty)))
+}
 object ApiStatus extends Enumeration {
   type ApiStatus = Value
   val ALPHA, BETA, PROTOTYPED, PUBLISHED, STABLE, DEPRECATED, RETIRED = Value

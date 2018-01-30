@@ -81,4 +81,33 @@ class ServiceLocatorConnectorSpec extends UnitSpec with ScalaFutures with Before
       intercept[NotFoundException](await(connector.lookupService(serviceName)))
     }
   }
+
+  "register" should {
+    "register the JSON API Definition into the Service Locator" in new Setup {
+
+      val registration =
+        Registration(serviceName = "api-notification-pull",
+          serviceUrl = "http://api-notification-pull.service",
+          metadata = Some(Map("third-party-api" -> "true")))
+
+      stubFor(post(urlEqualTo(s"/registration"))
+        .willReturn(aResponse().withStatus(200)))
+
+      connector.register.futureValue shouldBe true
+    }
+
+    "fail registering in service locator" in new Setup {
+
+      val registration =
+        Registration(serviceName = "api-notification-pull",
+          serviceUrl = "http://api-notification-pull.service",
+          metadata = Some(Map("third-party-api" -> "true")))
+
+      stubFor(post(urlEqualTo(s"/registration"))
+        .willReturn(aResponse().withStatus(500)))
+
+      connector.register.futureValue shouldBe false
+
+    }
+  }
 }

@@ -71,7 +71,7 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
       result.get.name shouldBe "Calendar"
       result.get.versions should have size 2
       result.get.versions map (_.productionAvailability.map(_.access)) shouldBe
-        Seq(Some(ApiAccess(ApiAccessType.PUBLIC)), Some(ApiAccess(ApiAccessType.PRIVATE)))
+        Seq(Some(ApiAccess(ApiAccessType.PUBLIC, None)), Some(ApiAccess(ApiAccessType.PRIVATE, Some(Seq("app-id-1","app-id-2")))))
     }
 
     "return a fetched API Definition when queried by email" in new Setup {
@@ -83,7 +83,7 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
       result.get.name shouldBe "Calendar"
       result.get.versions should have size 2
       result.get.versions map (_.productionAvailability.map(_.access)) shouldBe
-        Seq(Some(ApiAccess(ApiAccessType.PUBLIC)), Some(ApiAccess(ApiAccessType.PRIVATE)))
+        Seq(Some(ApiAccess(ApiAccessType.PUBLIC, None)), Some(ApiAccess(ApiAccessType.PRIVATE, Some(Seq("app-id-1","app-id-2")))))
     }
 
     "return a fetched API Definition with access levels" in new Setup {
@@ -96,7 +96,7 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
       result.get.name shouldBe "Hello with access levels"
       result.get.versions should have size 2
       result.get.versions map (_.productionAvailability.map(_.access)) shouldBe
-        Seq(Some(ApiAccess(ApiAccessType.PUBLIC)), Some(ApiAccess(ApiAccessType.PRIVATE)))
+        Seq(Some(ApiAccess(ApiAccessType.PUBLIC, None)), Some(ApiAccess(ApiAccessType.PRIVATE, Some(Seq("app-id-1","app-id-2")))))
     }
 
     "throw an http-verbs Upstream5xxResponse exception if the API Definition service responds with an error" in new Setup {
@@ -219,42 +219,42 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
 
   private def apiDefinitionJson(name: String) = {
     s"""{
-        |  "name" : "$name",
-        |  "description" : "Test API",
-        |  "context" : "test",
-        |  "serviceBaseUrl" : "http://test",
-        |  "serviceName" : "test",
-        |  "versions" : [
-        |    {
-        |      "version" : "1.0",
-        |      "status" : "STABLE",
-        |      "endpoints" : [
-        |        {
-        |          "uriPattern" : "/hello",
-        |          "endpointName" : "Say Hello",
-        |          "method" : "GET",
-        |          "authType" : "NONE",
-        |          "throttlingTier" : "UNLIMITED"
-        |        }
-        |      ],
-        |      "endpointsEnabled": true
-        |    },
-        |    {
-        |      "version" : "2.0",
-        |      "status" : "STABLE",
-        |      "endpoints" : [
-        |        {
-        |          "uriPattern" : "/hello",
-        |          "endpointName" : "Say Hello",
-        |          "method" : "GET",
-        |          "authType" : "NONE",
-        |          "throttlingTier" : "UNLIMITED",
-        |          "scope": "read:hello"
-        |        }
-        |      ],
-        |      "endpointsEnabled": true
-        |    }
-        |  ]
-        |}""".stripMargin.replaceAll("\n", " ")
+       |  "name" : "$name",
+       |  "description" : "Test API",
+       |  "context" : "test",
+       |  "serviceBaseUrl" : "http://test",
+       |  "serviceName" : "test",
+       |  "versions" : [
+       |    {
+       |      "version" : "1.0",
+       |      "status" : "STABLE",
+       |      "endpoints" : [
+       |        {
+       |          "uriPattern" : "/hello",
+       |          "endpointName" : "Say Hello",
+       |          "method" : "GET",
+       |          "authType" : "NONE",
+       |          "throttlingTier" : "UNLIMITED"
+       |        }
+       |      ],
+       |      "endpointsEnabled": true
+       |    },
+       |    {
+       |      "version" : "2.0",
+       |      "status" : "STABLE",
+       |      "endpoints" : [
+       |        {
+       |          "uriPattern" : "/hello",
+       |          "endpointName" : "Say Hello",
+       |          "method" : "GET",
+       |          "authType" : "NONE",
+       |          "throttlingTier" : "UNLIMITED",
+       |          "scope": "read:hello"
+       |        }
+       |      ],
+       |      "endpointsEnabled": true
+       |    }
+       |  ]
+       |}""".stripMargin.replaceAll("\n", " ")
   }
 }

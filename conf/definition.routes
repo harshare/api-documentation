@@ -1,0 +1,2 @@
+GET   /api/definition              @uk.gov.hmrc.apidocumentation.controllers.ApiPlatformController.definition()
+GET   /api/conf/:version/*file     @uk.gov.hmrc.apidocumentation.controllers.ApiPlatformController.raml(version, file)
