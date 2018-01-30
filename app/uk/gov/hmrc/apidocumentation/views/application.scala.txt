@@ -1,0 +1,42 @@
+@(apiContext: String)#%RAML 1.0
+---
+
+title: API Documentation
+version: 1.0
+protocols: [ HTTPS ]
+baseUri: https://api.service.hmrc.gov.uk/
+
+mediaType: [ application/json ]
+
+uses:
+  sec: https://developer.service.hmrc.gov.uk/api-documentation/assets/common/modules/securitySchemes.raml
+  headers: https://developer.service.hmrc.gov.uk/api-documentation/assets/common/modules/headers.raml
+  annotations: https://developer.service.hmrc.gov.uk/api-documentation/assets/common/modules/annotations.raml
+  types: https://developer.service.hmrc.gov.uk/api-documentation/assets/common/modules/types.raml
+
+/@apiContext:
+  /apis:
+    /definition:
+      get:
+        queryParameters:
+          emailAddress:
+            type: string
+        is: [headers.acceptHeader]
+        securedBy: [ sec.x-application ]
+    /{serviceName}:
+      uriParameters:
+        serviceName:
+          description: The service name being retrieved.
+          type: string
+      /definition
+        get:
+          is: [headers.acceptHeader]
+          securedBy: [ sec.x-application ]
+      /{other}:
+        uriParameters:
+          other:
+            description: The other stuff retrieved.
+            type: string
+        get:
+          is: [headers.acceptHeader]
+          securedBy: [ sec.x-application ]

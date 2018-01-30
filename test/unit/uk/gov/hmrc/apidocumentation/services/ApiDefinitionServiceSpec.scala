@@ -40,9 +40,9 @@ class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
     val remoteDef = localDef1.copy(versions = Seq(ApiVersion("2.0", None, ApiStatus.BETA, Seq.empty, false)))
     val apiDefinitions = Seq(localDef1, localDef2)
 
-    val productionV1Availability = ApiAvailability(endpointsEnabled = true, ApiAccess(ApiAccessType.PRIVATE), loggedIn = false, authorised = false)
-    val sandboxV1Availability = ApiAvailability(endpointsEnabled = true, ApiAccess(ApiAccessType.PUBLIC), loggedIn = false, authorised = false)
-    val sandboxV2Availability = ApiAvailability(endpointsEnabled = false, ApiAccess(ApiAccessType.PUBLIC), loggedIn = false, authorised = false)
+    val productionV1Availability = ApiAvailability(endpointsEnabled = true, ApiAccess(ApiAccessType.PRIVATE, Some(Seq.empty)), loggedIn = false, authorised = false)
+    val sandboxV1Availability = ApiAvailability(endpointsEnabled = true, ApiAccess(ApiAccessType.PUBLIC, Some(Seq.empty)), loggedIn = false, authorised = false)
+    val sandboxV2Availability = ApiAvailability(endpointsEnabled = false, ApiAccess(ApiAccessType.PUBLIC, Some(Seq.empty)), loggedIn = false, authorised = false)
 
     val productionApiDefinition = ExtendedApiDefinition(serviceName, "http://hello.protected.mdtp", "Hello World", "Example", "hello",
       requiresTrust = false, isTestSupport = false, Seq(
@@ -66,42 +66,42 @@ class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
     def theApiDefinitionConnectorWillReturnTheApiDefinition = {
       when(mockApiDefinitionConnector.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
-          .thenReturn(Future.successful(Some(productionApiDefinition)))
+        .thenReturn(Future.successful(Some(productionApiDefinition)))
     }
 
     def theApiDocumentationConnectorWillReturnTheApiDefinition = {
       when(mockApiDocumentationConnector.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
-          .thenReturn(Future.successful(Some(sandboxApiDefinition)))
+        .thenReturn(Future.successful(Some(sandboxApiDefinition)))
     }
 
     def theApiDefinitionConnectorWillReturnNoApiDefinition = {
       when(mockApiDefinitionConnector.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
-          .thenReturn(Future.successful(None))
+        .thenReturn(Future.successful(None))
     }
 
     def theApiDocumentationConnectorWillReturnNoApiDefinition = {
       when(mockApiDocumentationConnector.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
-          .thenReturn(Future.successful(None))
+        .thenReturn(Future.successful(None))
     }
 
     def theApiDefinitionConnectorWillFailToReturnTheApiDefinition = {
       when(mockApiDefinitionConnector.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
-          .thenReturn(Future.failed(new RuntimeException))
+        .thenReturn(Future.failed(new RuntimeException))
     }
 
     def theApiDocumentationConnectorWillFailToReturnTheApiDefinition = {
       when(mockApiDocumentationConnector.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
-          .thenReturn(Future.failed(new RuntimeException))
+        .thenReturn(Future.failed(new RuntimeException))
     }
 
     def theApiDefinitionConnectorWillReturnTheApiDefinitions = {
       when(mockApiDefinitionConnector.fetchApiDefinitions(any[Option[String]])(any[HeaderCarrier]))
-          .thenReturn(Future.successful(apiDefinitions))
+        .thenReturn(Future.successful(apiDefinitions))
     }
 
     def theApiDefinitionConnectorWillFailToReturnTheApiDefinitions = {
       when(mockApiDefinitionConnector.fetchApiDefinitions(any[Option[String]])(any[HeaderCarrier]))
-          .thenReturn(Future.failed(new RuntimeException))
+        .thenReturn(Future.failed(new RuntimeException))
     }
   }
 
@@ -178,7 +178,7 @@ class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
       val result = await(underTest.fetchApiDefinitions(Some(loggedInUserEmail)))
 
-      result shouldBe Seq(localDef2,remoteDef)
+      result shouldBe Seq(localDef2, remoteDef)
     }
 
     "fail when the connector fails to return the API definitions" in new Setup {
