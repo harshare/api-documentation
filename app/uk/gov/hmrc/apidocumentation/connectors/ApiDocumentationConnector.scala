@@ -18,6 +18,7 @@ package uk.gov.hmrc.apidocumentation.connectors
 
 import javax.inject.Inject
 
+import play.api.Logger
 import play.api.http.Status.NOT_FOUND
 import play.api.libs.ws.{StreamedResponse, WSClient}
 import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
@@ -65,6 +66,7 @@ class ApiDocumentationConnector @Inject()(http: ProxiedHttpClient, ws: WSClient,
 
   def fetchApiDocumentationResource(serviceName: String, version: String, resource: String)
                                    (implicit hc: HeaderCarrier): Future[StreamedResponse] = {
+    Logger.info(s"Calling remote API documentation service to fetch documentation resource: $serviceName, $version, $resource")
 
     ws.url(s"$serviceBaseUrl/apis/$serviceName/$version/$resource").withMethod("GET").stream()
   }

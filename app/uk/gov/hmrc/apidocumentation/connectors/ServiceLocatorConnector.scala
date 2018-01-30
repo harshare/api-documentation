@@ -45,6 +45,8 @@ class ServiceLocatorConnector @Inject()(http: HttpClient, config: ServiceConfigu
   val metadata: Option[Map[String, String]] = Some(Map("third-party-api" -> "true"))
 
   def lookupService(serviceName: String)(implicit hc: HeaderCarrier): Future[ServiceDetails] = {
+    Logger.info(s"Calling service locator for: $serviceName")
+
     http.GET[ServiceDetails](s"$serviceBaseUrl/service/$serviceName")
   }
 
