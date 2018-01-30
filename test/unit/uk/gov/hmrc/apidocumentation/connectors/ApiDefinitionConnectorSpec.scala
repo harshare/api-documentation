@@ -99,6 +99,15 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
         Seq(Some(ApiAccess(ApiAccessType.PUBLIC)), Some(ApiAccess(ApiAccessType.PRIVATE)))
     }
 
+    "return None when the API Definition is not found" in new Setup {
+      val serviceName = "calendar"
+      stubFor(get(urlEqualTo(s"/api-definition/$serviceName/extended"))
+        .willReturn(aResponse().withStatus(404)))
+
+      val result = await(connector.fetchApiDefinition(serviceName))
+      result shouldBe None
+    }
+
     "throw an http-verbs Upstream5xxResponse exception if the API Definition service responds with an error" in new Setup {
       val serviceName = "calendar"
       stubFor(get(urlEqualTo(s"/api-definition/$serviceName/extended"))
