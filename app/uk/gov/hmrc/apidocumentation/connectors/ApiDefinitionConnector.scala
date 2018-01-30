@@ -18,10 +18,9 @@ package uk.gov.hmrc.apidocumentation.connectors
 
 import javax.inject.Inject
 
-import play.api.http.Status.NOT_FOUND
 import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
 import uk.gov.hmrc.apidocumentation.models.{ApiDefinition, ExtendedApiDefinition}
-import uk.gov.hmrc.http.{HeaderCarrier, Upstream4xxResponse}
+import uk.gov.hmrc.http.{HeaderCarrier, NotFoundException}
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 
@@ -43,7 +42,7 @@ class ApiDefinitionConnector @Inject()(http: HttpClient, config: ServiceConfigur
     http.GET[ExtendedApiDefinition](s"$serviceBaseUrl/api-definition/$serviceName/extended", queryParams(email))
       .map(Some(_))
       .recover {
-        case Upstream4xxResponse(_, NOT_FOUND, _, _) => None
+        case _: NotFoundException => None
       }
   }
 
