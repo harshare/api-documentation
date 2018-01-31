@@ -28,7 +28,7 @@ uses:
         serviceName:
           description: The service name being retrieved.
           type: string
-      /definition
+      /definition:
         get:
           is: [headers.acceptHeader]
           securedBy: [ sec.x-application ]
