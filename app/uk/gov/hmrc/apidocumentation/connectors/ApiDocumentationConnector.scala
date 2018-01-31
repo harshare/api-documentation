@@ -68,7 +68,7 @@ class ApiDocumentationConnector @Inject()(http: ProxiedHttpClient, ws: WSClient,
                                    (implicit hc: HeaderCarrier): Future[StreamedResponse] = {
     Logger.info(s"Calling remote API documentation service to fetch documentation resource: $serviceName, $version, $resource")
 
-    ws.url(s"$serviceBaseUrl/apis/$serviceName/$version/$resource").withMethod("GET").stream()
+    ws.url(s"$serviceBaseUrl/apis/$serviceName/$version/documentation/$resource").withMethod("GET").stream()
   }
 
   private def queryParams(email: Option[String]) = email.fold(Seq.empty[(String, String)])(e => Seq("email" -> e))
