@@ -24,7 +24,5 @@ import uk.gov.hmrc.apidocumentation.connectors.ServiceLocatorConnector
 
 @Singleton
 class ApplicationRegistration @Inject()(serviceLocatorConnector: ServiceLocatorConnector, config: ServiceConfiguration) {
-  val registrationEnabled: Boolean = config.getConfBool("service-locator.enabled", defBool = true)
-
-  if (registrationEnabled) serviceLocatorConnector.register()
+  if (config.publishApiDefinition) serviceLocatorConnector.register()
 }
