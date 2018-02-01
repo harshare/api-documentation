@@ -30,4 +30,10 @@ class ServiceConfiguration @Inject() (override val runModeConfiguration: Configu
   lazy val apiContext = runModeConfiguration.getString("api.context").getOrElse("api-documentation")
   lazy val access = runModeConfiguration.getConfig(s"api.access")
 
+  override def baseUrl(serviceName: String) = {
+    val context = getConfString(s"$serviceName.context", "")
+    
+    if(context.length > 0) s"${super.baseUrl(serviceName)}/$context"
+    else super.baseUrl(serviceName)
+  }
 }
