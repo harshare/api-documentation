@@ -26,7 +26,7 @@ import _root_.play.api.{Configuration, Environment}
 class ApplicationRegistrationSpec extends UnitSpec with MockitoSugar {
 
   case class TestServiceConfiguration(outcome: Boolean) extends ServiceConfiguration(mock[Configuration], mock[Environment]) {
-    override def getConfBool(confKey: String, defBool: => Boolean): Boolean = outcome
+    override lazy val publishApiDefinition = outcome
   }
 
   trait Setup {
@@ -36,13 +36,11 @@ class ApplicationRegistrationSpec extends UnitSpec with MockitoSugar {
   "ApplicationRegistration" should {
     "try to register on service locator if configured" in new Setup {
       val a = new ApplicationRegistration(mockConnector, TestServiceConfiguration(true))
-      a.registrationEnabled should be(true)
       verify(mockConnector).register()
     }
 
     "not try to register on service locator if not configured" in new Setup {
       val a = new ApplicationRegistration(mockConnector, TestServiceConfiguration(false))
-      a.registrationEnabled should be(false)
       verify(mockConnector, never()).register()
     }
   }

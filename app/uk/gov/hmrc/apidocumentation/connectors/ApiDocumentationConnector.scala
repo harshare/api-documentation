@@ -19,19 +19,15 @@ package uk.gov.hmrc.apidocumentation.connectors
 import javax.inject.Inject
 
 import play.api.Logger
-import play.api.http.Status.NOT_FOUND
 import play.api.libs.ws.{StreamedResponse, WSClient}
 import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
 import uk.gov.hmrc.apidocumentation.models.{ApiDefinition, ExtendedApiDefinition}
-import uk.gov.hmrc.http.{HeaderCarrier, Upstream4xxResponse}
-import uk.gov.hmrc.play.bootstrap.http.HttpClient
-import uk.gov.hmrc.apidocumentation.models.ApiDefinition
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 
 import scala.concurrent.Future
 
-class ApiDocumentationConnector @Inject()(http: ProxiedHttpClient, ws: WSClient, config: ServiceConfiguration) {
+class ApiDocumentationConnector @Inject()(http: ProxiedApiPlatformHttpClient, ws: WSClient, config: ServiceConfiguration) {
 
 
   val serviceBaseUrl = config.baseUrl("api-documentation")

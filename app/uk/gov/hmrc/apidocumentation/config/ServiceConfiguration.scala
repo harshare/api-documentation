@@ -27,7 +27,7 @@ class ServiceConfiguration @Inject() (override val runModeConfiguration: Configu
   lazy val isSandbox = runModeConfiguration.getBoolean("isSandbox").getOrElse(false)
 
   lazy val publishApiDefinition = runModeConfiguration.getBoolean("publishApiDefinition").getOrElse(false)
-  lazy val apiContext = runModeConfiguration.getString("api.context").getOrElse("third-party-application")
+  lazy val apiContext = runModeConfiguration.getString("api.context").getOrElse("api-documentation")
   lazy val access = runModeConfiguration.getConfig(s"api.access")
 
 }
