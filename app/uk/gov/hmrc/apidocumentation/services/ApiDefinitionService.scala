@@ -38,13 +38,13 @@ class ApiDefinitionService @Inject()(apiDefinitionConnector: ApiDefinitionConnec
 
 
   def fetchApiDefinition(serviceName: String, thirdPartyDeveloperEmail: Option[String] = None)
-                        (implicit hc: HeaderCarrier): Future[ExtendedApiDefinition] = {
+                        (implicit hc: HeaderCarrier): Future[Option[ExtendedApiDefinition]] = {
     val localFuture = apiDefinitionConnector.fetchApiDefinition(serviceName, thirdPartyDeveloperEmail)
     val remoteFuture = apiDocumentationConnector.fetchApiDefinition(serviceName, thirdPartyDeveloperEmail)
     for {
       localDefinition <- localFuture
       remoteDefinition <- remoteFuture
-    } yield combine(localDefinition, remoteDefinition).get
+    } yield combine(localDefinition, remoteDefinition)
   }
 
   private def combine(maybeLocalDefinition: Option[ExtendedApiDefinition], maybeRemoteDefinition: Option[ExtendedApiDefinition]) = {

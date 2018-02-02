@@ -32,7 +32,7 @@ class ServiceConfiguration @Inject() (override val runModeConfiguration: Configu
 
   override def baseUrl(serviceName: String) = {
     val context = getConfString(s"$serviceName.context", "")
-    
+
     if(context.length > 0) s"${super.baseUrl(serviceName)}/$context"
     else super.baseUrl(serviceName)
   }

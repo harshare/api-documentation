@@ -69,7 +69,12 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
     def theApiDefinitionWillBeReturned = {
       when(mockApiDefinitionService.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(apiDefinition))
+        .thenReturn(Future.successful(Some(apiDefinition)))
+    }
+
+    def noApiDefinitionWillBeReturned = {
+      when(mockApiDefinitionService.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(None))
     }
 
     def theApiMicroserviceWillReturnTheResource(response: StreamedResponse) = {
@@ -187,6 +192,14 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
       intercept[InternalServerException] {
         await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resourceNotThere")(hc))
+      }
+    }
+
+    "fail when API definition is not found" in new Setup {
+      noApiDefinitionWillBeReturned
+
+      intercept[IllegalArgumentException] {
+        await(underTest.fetchApiDocumentationResource(serviceName, "4.0", "resource")(hc))
       }
     }
 
