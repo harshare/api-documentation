@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.apidocumentation.connectors
 
+import java.net.URLEncoder
 import javax.inject.Inject
 
 import play.api.Logger
@@ -64,7 +65,7 @@ class ApiDocumentationConnector @Inject()(http: ProxiedApiPlatformHttpClient, ws
                                    (implicit hc: HeaderCarrier): Future[StreamedResponse] = {
     Logger.info(s"Calling remote API documentation service to fetch documentation resource: $serviceName, $version, $resource")
 
-    ws.url(s"$serviceBaseUrl/apis/$serviceName/$version/documentation/$resource").withMethod("GET").stream()
+    ws.url(s"$serviceBaseUrl/apis/$serviceName/$version/documentation?resource=${URLEncoder.encode(resource, "UTF-8")}").withMethod("GET").stream()
   }
 
   private def queryParams(email: Option[String]) = email.fold(Seq.empty[(String, String)])(e => Seq("email" -> e))

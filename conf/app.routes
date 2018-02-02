@@ -4,4 +4,6 @@ GET        /apis/definition                                          @uk.gov.hmr
 
 GET        /apis/:serviceName/definition                             @uk.gov.hmrc.apidocumentation.controllers.ApiDefinitionController.fetchApiDefinition(serviceName)
 
+GET        /apis/:serviceName/:version/documentation                 @uk.gov.hmrc.apidocumentation.controllers.DocumentationController.fetchApiDocumentationResource(serviceName, version, resource)
+
 GET        /apis/:serviceName/:version/documentation/*resource       @uk.gov.hmrc.apidocumentation.controllers.DocumentationController.fetchApiDocumentationResource(serviceName, version, resource)
