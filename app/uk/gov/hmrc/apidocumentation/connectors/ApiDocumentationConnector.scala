@@ -20,7 +20,7 @@ import java.net.URLEncoder
 import javax.inject.Inject
 
 import play.api.Logger
-import play.api.libs.ws.{StreamedResponse, WSClient}
+import play.api.libs.ws.StreamedResponse
 import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
 import uk.gov.hmrc.apidocumentation.models.{ApiDefinition, ExtendedApiDefinition}
 import uk.gov.hmrc.http.HeaderCarrier
@@ -28,7 +28,7 @@ import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 
 import scala.concurrent.Future
 
-class ApiDocumentationConnector @Inject()(http: ProxiedApiPlatformHttpClient, ws: WSClient, config: ServiceConfiguration) {
+class ApiDocumentationConnector @Inject()(http: ProxiedApiPlatformHttpClient, config: ServiceConfiguration) {
 
 
   val serviceBaseUrl = config.baseUrl("api-documentation")
@@ -65,7 +65,9 @@ class ApiDocumentationConnector @Inject()(http: ProxiedApiPlatformHttpClient, ws
                                    (implicit hc: HeaderCarrier): Future[StreamedResponse] = {
     Logger.info(s"Calling remote API documentation service to fetch documentation resource: $serviceName, $version, $resource")
 
-    ws.url(s"$serviceBaseUrl/apis/$serviceName/$version/documentation?resource=${URLEncoder.encode(resource, "UTF-8")}").withMethod("GET").stream()
+    http.buildRequest(s"$serviceBaseUrl/apis/$serviceName/$version/documentation?resource=${URLEncoder.encode(resource, "UTF-8")}")
+      .withMethod("GET")
+      .stream()
   }
 
   private def queryParams(email: Option[String]) = email.fold(Seq.empty[(String, String)])(e => Seq("email" -> e))
