@@ -39,10 +39,12 @@ class DocumentationService @Inject()(apiDefinitionService: ApiDefinitionService,
   def fetchApiDocumentationResource(serviceName: String, version: String, resource: String)(implicit hc: HeaderCarrier): Future[Result] = {
 
     def fetchApiVersion: Future[ExtendedApiVersion] = {
-      apiDefinitionService.fetchApiDefinition(serviceName).flatMap {
-        _.versions.find(_.version == version).fold {
-          Future.failed[ExtendedApiVersion](new IllegalArgumentException("Version not found"))
-        }(Future.successful)
+      apiDefinitionService.fetchApiDefinition(serviceName).map {
+        case Some(definition) => definition.versions.find(_.version == version)
+        case _ => None
+      }.flatMap {
+        case Some(v) => Future.successful(v)
+        case _ => Future.failed[ExtendedApiVersion](new IllegalArgumentException("Version not found"))
       }
     }
 

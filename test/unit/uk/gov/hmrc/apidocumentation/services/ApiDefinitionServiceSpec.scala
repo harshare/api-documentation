@@ -123,7 +123,7 @@ class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
       val result = await(underTest.fetchApiDefinition(serviceName, Some(loggedInUserEmail)))
 
-      result shouldBe productionApiDefinition
+      result shouldBe Some(productionApiDefinition)
     }
 
     "return the API definition when it exists in sandbox only" in new Setup {
@@ -132,7 +132,7 @@ class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
       val result = await(underTest.fetchApiDefinition(serviceName, Some(loggedInUserEmail)))
 
-      result shouldBe sandboxApiDefinition
+      result shouldBe Some(sandboxApiDefinition)
     }
 
     "return the API combined definition when it exists in prod and sandbox" in new Setup {
@@ -141,7 +141,16 @@ class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
       val result = await(underTest.fetchApiDefinition(serviceName, Some(loggedInUserEmail)))
 
-      result shouldBe combinedApiDefinition
+      result shouldBe Some(combinedApiDefinition)
+    }
+
+    "return None when both connectors return no API definition" in new Setup {
+      theApiDefinitionConnectorWillReturnNoApiDefinition
+      theApiDocumentationConnectorWillReturnNoApiDefinition
+
+      val result = await(underTest.fetchApiDefinition(serviceName, Some(loggedInUserEmail)))
+
+      result shouldBe None
     }
 
     "fail when the API definition connector fails to return the API definition" in new Setup {

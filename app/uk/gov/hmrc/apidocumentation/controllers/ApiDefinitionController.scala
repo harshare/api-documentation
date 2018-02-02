@@ -33,8 +33,9 @@ class ApiDefinitionController @Inject() (service: ApiDefinitionService) extends 
   }
 
   def fetchApiDefinition(serviceName: String) = Action.async { implicit request =>
-    service.fetchApiDefinition(serviceName, emailQueryParameter(request)) map { definition =>
-      Ok(Json.toJson(definition))
+    service.fetchApiDefinition(serviceName, emailQueryParameter(request)) map {
+      case Some(definition) => Ok(Json.toJson(definition))
+      case _ => NotFound
     }
   }
 

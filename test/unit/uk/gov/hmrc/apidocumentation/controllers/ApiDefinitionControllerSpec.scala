@@ -54,7 +54,12 @@ class ApiDefinitionControllerSpec extends UnitSpec with ScalaFutures with Mockit
 
     def theServiceWillReturnTheApiDefinition = {
       when(apiDefinitionService.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
-        .thenReturn(Future.successful(apiDefinition))
+        .thenReturn(Future.successful(Some(apiDefinition)))
+    }
+
+    def theServiceWillReturnNoApiDefinition = {
+      when(apiDefinitionService.fetchApiDefinition(anyString, any[Option[String]])(any[HeaderCarrier]))
+        .thenReturn(Future.successful(None))
     }
 
     def theServiceWillFailToReturnTheApiDefinition = {
@@ -133,6 +138,14 @@ class ApiDefinitionControllerSpec extends UnitSpec with ScalaFutures with Mockit
       val result = await(underTest.fetchApiDefinition(serviceName)(request))
 
       status(result) shouldBe OK
+    }
+
+    "return NotFound when no API definition is returned for a single service" in new Setup {
+      theServiceWillReturnNoApiDefinition
+
+      val result = await(underTest.fetchApiDefinition(serviceName)(request))
+
+      status(result) shouldBe NOT_FOUND
     }
 
     "fail when the service fails to return the API definition for a single service" in new Setup {
