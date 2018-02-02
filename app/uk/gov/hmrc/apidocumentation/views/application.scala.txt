@@ -32,11 +32,15 @@ uses:
         get:
           is: [headers.acceptHeader]
           securedBy: [ sec.x-application ]
-      /{other}:
+      /{version}:
         uriParameters:
-          other:
-            description: The other stuff retrieved.
+          version:
+            description: The version of the service.
             type: string
-        get:
-          is: [headers.acceptHeader]
-          securedBy: [ sec.x-application ]
+        /documentation:
+          get:
+            queryParameters:
+              resource:
+                type: string
+            is: [headers.acceptHeader]
+            securedBy: [ sec.x-application ]
