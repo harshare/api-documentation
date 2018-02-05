@@ -60,13 +60,23 @@ class DocumentationService @Inject()(apiDefinitionService: ApiDefinitionService,
       }
     }
 
+    def determineContentType(streamedResponse: StreamedResponse) = {
+      if (resource.endsWith(".raml") || resource.endsWith(".md")) {
+        "text/plain"
+      } else if (resource.endsWith(".json")) {
+        "application/json"
+      } else {
+        streamedResponse.headers.headers.get("Content-Type").flatMap(_.headOption)
+          .getOrElse("application/octet-stream")
+      }
+    }
+
     for {
       apiVersion <- fetchApiVersion
       streamedResponse <- fetchResource(apiVersion)
     } yield streamedResponse.headers.status match {
       case OK => {
-        val contentType = streamedResponse.headers.headers.get("Content-Type").flatMap(_.headOption)
-          .getOrElse("application/octet-stream")
+        val contentType = determineContentType(streamedResponse)
 
         streamedResponse.headers.headers.get("Content-Length") match {
           case Some(Seq(length)) => Ok.sendEntity(HttpEntity.Streamed(streamedResponse.body, Some(length.toLong), Some(contentType)))
