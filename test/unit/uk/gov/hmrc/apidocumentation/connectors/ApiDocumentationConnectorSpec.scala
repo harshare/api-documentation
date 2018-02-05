@@ -51,6 +51,17 @@ class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with Befo
   val serviceName = "hello"
   val version = "1.0"
   val streamedResourceUrl = s"$apiDocumentationUrl/apis/$serviceName/$version/resource"
+  val file = new java.io.File("hello")
+  val path: java.nio.file.Path = file.toPath
+  val source: Source[ByteString, _] = FileIO.fromPath(path)
+
+  val mockWs = MockWS {
+    case ("GET", `streamedResourceUrl`) => Action(Result(
+      header = ResponseHeader(200, Map("Content-length" -> s"${file.length()}")),
+      body = HttpEntity.Streamed(source, Some(file.length()), Some("application/pdf"))
+    ))
+  }
+
 
   class TestServiceConfiguration(bool: Boolean = true) extends ServiceConfiguration(app.injector.instanceOf[Configuration], app.injector.instanceOf[Environment]) {
     override def baseUrl(serviceName: String): String = apiDocumentationUrl
@@ -63,7 +74,7 @@ class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with Befo
   trait Setup {
     implicit val hc = HeaderCarrier()
     private val testServiceConfiguration = new TestServiceConfiguration
-    val connector = new ApiDocumentationConnector(new ProxyTestHttpClient(testServiceConfiguration, new TestAuditConnector, app.injector.instanceOf[WSClient]), testServiceConfiguration)
+    val connector = new ApiDocumentationConnector(new ProxyTestHttpClient(testServiceConfiguration, new TestAuditConnector, app.injector.instanceOf[WSClient]), mockWs, testServiceConfiguration)
   }
 
   override def beforeEach() {
@@ -119,7 +130,7 @@ class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with Befo
 
     "return an empty Sequence if the remote call is disabled" in new Setup {
       private val configuration = new TestServiceConfiguration(false)
-      override val connector = new ApiDocumentationConnector(new ProxyTestHttpClient(configuration, new TestAuditConnector, app.injector.instanceOf[WSClient]), configuration)
+      override val connector = new ApiDocumentationConnector(new ProxyTestHttpClient(configuration, new TestAuditConnector, app.injector.instanceOf[WSClient]), mockWs, configuration)
 
       val result = await(connector.fetchApiDefinitions(Some(loggedInUserEmail)))
 
