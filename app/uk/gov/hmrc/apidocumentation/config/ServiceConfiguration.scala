@@ -29,6 +29,7 @@ class ServiceConfiguration @Inject() (override val runModeConfiguration: Configu
   lazy val publishApiDefinition = runModeConfiguration.getBoolean("publishApiDefinition").getOrElse(false)
   lazy val apiContext = runModeConfiguration.getString("api.context").getOrElse("api-documentation")
   lazy val access = runModeConfiguration.getConfig(s"api.access")
+  lazy val apiPlatformBearerToken = runModeConfiguration.getString(s"$env.api-platform.bearer-token")
 
   override def baseUrl(serviceName: String) = {
     val context = getConfString(s"$serviceName.context", "")
