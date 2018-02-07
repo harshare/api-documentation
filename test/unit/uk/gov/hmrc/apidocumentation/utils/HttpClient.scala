@@ -16,9 +16,6 @@
 
 package uk.gov.hmrc.apidocumentation.utils
 
-import play.api.libs.ws.WSClient
-import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
-import uk.gov.hmrc.apidocumentation.connectors.ProxiedApiPlatformHttpClient
 import uk.gov.hmrc.play.audit.http.config.AuditingConfig
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
@@ -26,11 +23,6 @@ import uk.gov.hmrc.play.http.ws.WSHttp
 
 class TestHttpClient extends HttpClient with WSHttp {
   override val hooks = Seq.empty
-}
-
-class ProxyTestHttpClient(config: ServiceConfiguration, override val auditConnector: AuditConnector, override val wsClient: WSClient) extends ProxiedApiPlatformHttpClient(config, auditConnector, wsClient) {
-  override val hooks = Seq.empty
-
 }
 
 class TestAuditConnector extends AuditConnector {

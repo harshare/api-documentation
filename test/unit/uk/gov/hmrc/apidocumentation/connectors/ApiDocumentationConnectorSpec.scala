@@ -22,7 +22,7 @@ import akka.stream.scaladsl.{FileIO, Source}
 import akka.util.ByteString
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.WireMock
-import com.github.tomakehurst.wiremock.client.WireMock.{aResponse, get, stubFor, urlEqualTo}
+import com.github.tomakehurst.wiremock.client.WireMock._
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import mockws.MockWS
 import org.scalatest.BeforeAndAfterEach
@@ -35,7 +35,6 @@ import play.api.mvc.{Action, ResponseHeader, Result}
 import play.api.{Configuration, Environment}
 import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
 import uk.gov.hmrc.apidocumentation.models.{ApiAccess, ApiAccessType}
-import uk.gov.hmrc.apidocumentation.utils.{ProxyTestHttpClient, TestAuditConnector}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.UnitSpec
 
@@ -74,7 +73,9 @@ class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with Befo
   trait Setup {
     implicit val hc = HeaderCarrier()
     private val testServiceConfiguration = new TestServiceConfiguration
-    val connector = new ApiDocumentationConnector(new ProxyTestHttpClient(testServiceConfiguration, new TestAuditConnector, app.injector.instanceOf[WSClient]), mockWs, testServiceConfiguration)
+    val connector = new ApiDocumentationConnector(
+      new ProxiedApiPlatformWsClient(testServiceConfiguration, app.injector.instanceOf[WSClient]),
+      testServiceConfiguration)
   }
 
   override def beforeEach() {
@@ -129,12 +130,14 @@ class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with Befo
     }
 
     "return an empty Sequence if the remote call is disabled" in new Setup {
-      private val configuration = new TestServiceConfiguration(false)
-      override val connector = new ApiDocumentationConnector(new ProxyTestHttpClient(configuration, new TestAuditConnector, app.injector.instanceOf[WSClient]), mockWs, configuration)
+      WireMock.resetAllRequests()
+      val configuration = new TestServiceConfiguration(false)
+      val wsClient = new ProxiedApiPlatformWsClient(configuration, app.injector.instanceOf[WSClient])
+      override val connector = new ApiDocumentationConnector(wsClient, configuration)
 
       val result = await(connector.fetchApiDefinitions(Some(loggedInUserEmail)))
-
       result.size shouldBe 0
+      verify(0, getRequestedFor(urlEqualTo(s"/apis/definition?email=$encodedLoggedInUserMail")))
     }
   }
 

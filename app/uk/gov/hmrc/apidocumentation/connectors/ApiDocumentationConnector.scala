@@ -20,7 +20,8 @@ import java.net.URLEncoder
 import javax.inject.Inject
 
 import play.api.Logger
-import play.api.libs.ws.{StreamedResponse, WSClient}
+import play.api.http.HttpVerbs
+import play.api.libs.ws.StreamedResponse
 import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
 import uk.gov.hmrc.apidocumentation.models.{ApiDefinition, ExtendedApiDefinition}
 import uk.gov.hmrc.http.HeaderCarrier
@@ -28,18 +29,22 @@ import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 
 import scala.concurrent.Future
 
-class ApiDocumentationConnector @Inject()(http: ProxiedApiPlatformHttpClient, ws: WSClient, config: ServiceConfiguration) {
+class ApiDocumentationConnector @Inject()(ws: ProxiedApiPlatformWsClient, config: ServiceConfiguration) {
 
 
-  val serviceBaseUrl = config.baseUrl("api-documentation")
-
-  val enabled = config.getConfBool("api-documentation.enabled", false)
+  lazy val enabled = config.getConfBool("api-documentation.enabled", false)
+  lazy val serviceBaseUrl = config.baseUrl("api-documentation")
 
   def fetchApiDefinitions(email: Option[String] = None)
                          (implicit hc: HeaderCarrier): Future[Seq[ApiDefinition]] = {
 
     if (enabled) {
-      http.GET[Seq[ApiDefinition]](s"$serviceBaseUrl/apis/definition", queryParams(email)).map(_.sortBy(_.name)) recover {
+      ws.buildRequest(s"$serviceBaseUrl/apis/definition")
+        .withQueryString(queryParams(email): _*)
+        .get()
+        .map(response => response.json.as[Seq[ApiDefinition]])
+        .map(_.sortBy(_.name))
+        .recover {
         case _ => Seq.empty
       }
     } else {
@@ -51,8 +56,10 @@ class ApiDocumentationConnector @Inject()(http: ProxiedApiPlatformHttpClient, ws
                         (implicit hc: HeaderCarrier): Future[Option[ExtendedApiDefinition]] = {
 
     if(enabled) {
-      http.GET[ExtendedApiDefinition](s"$serviceBaseUrl/apis/$serviceName/definition", queryParams(email))
-        .map(Some(_))
+      ws.buildRequest(s"$serviceBaseUrl/apis/$serviceName/definition")
+        .withQueryString(queryParams(email): _*)
+        .get()
+        .map(response => Some(response.json.as[ExtendedApiDefinition]))
         .recover {
           case _ => None
         }
@@ -65,7 +72,9 @@ class ApiDocumentationConnector @Inject()(http: ProxiedApiPlatformHttpClient, ws
                                    (implicit hc: HeaderCarrier): Future[StreamedResponse] = {
     Logger.info(s"Calling remote API documentation service to fetch documentation resource: $serviceName, $version, $resource")
 
-    ws.url(s"$serviceBaseUrl/apis/$serviceName/$version/documentation?resource=${URLEncoder.encode(resource, "UTF-8")}").withMethod("GET").stream()
+    ws.buildRequest(s"$serviceBaseUrl/apis/$serviceName/$version/documentation?resource=${URLEncoder.encode(resource, "UTF-8")}")
+      .withMethod(HttpVerbs.GET)
+      .stream()
   }
 
   private def queryParams(email: Option[String]) = email.fold(Seq.empty[(String, String)])(e => Seq("email" -> e))
