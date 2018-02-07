@@ -20,6 +20,7 @@ This code is open source software licensed under the [Apache 2.0 License]("http:
 * API Definition - called to obtain the list of available APIs and the definition for a single API
 * Service Locator - called to discover the location where the microservice providing a given API can be found 
 * API microservices - called to obtain the documentation resources (RAML and schemas) for a given API version
+* API Documentation - the service in production calls across to its counterpart in the sandbox environment to obtain API definitions and documentation resources for APIs that exist in that environment
 
 ### Running the service locally
 
