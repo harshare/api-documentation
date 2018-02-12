@@ -16,15 +16,20 @@
 
 package uk.gov.hmrc.apidocumentation.controllers
 
-import javax.inject.Inject
-
+import org.mockito.Mockito.when
+import org.scalatest.mockito.MockitoSugar
 import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
-import uk.gov.hmrc.apidocumentation.services.DocumentationService
-import uk.gov.hmrc.play.bootstrap.controller.BaseController
 
-class DocumentationController @Inject() (service: DocumentationService, override val config: ServiceConfiguration) extends BaseController with AuthWrapper {
+trait AuthChecking extends MockitoSugar {
+  val bearerToken = "RIGHT-BEARER-TOKEN"
+  val validAuthorizationHeaderValue = s"Bearer $bearerToken"
+  val invalidAuthorizationHeaderValue = "Bearer WRONG-BEARER-TOKEN"
+  val mockConfig = mock[ServiceConfiguration]
 
-  def fetchApiDocumentationResource(serviceName: String, version: String, resource: String) = ifAuthorised { implicit request =>
-    service.fetchApiDocumentationResource(serviceName, version, resource)
+  def authorisationIsRequired = {
+    when(mockConfig.requiresAuthorization).thenReturn(true)
+    when(mockConfig.apiPlatformBearerToken).thenReturn(Some(bearerToken))
   }
+
+  def authorisationIsNotRequired = when(mockConfig.requiresAuthorization).thenReturn(false)
 }

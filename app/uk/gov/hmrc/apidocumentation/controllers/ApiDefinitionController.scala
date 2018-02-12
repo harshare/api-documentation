@@ -20,24 +20,25 @@ import javax.inject.Inject
 
 import play.api.libs.json.Json
 import play.api.mvc._
+import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
 import uk.gov.hmrc.apidocumentation.services.ApiDefinitionService
 import uk.gov.hmrc.play.bootstrap.controller.BaseController
 import uk.gov.hmrc.play.http.logging.MdcLoggingExecutionContext._
 
-class ApiDefinitionController @Inject() (service: ApiDefinitionService) extends BaseController {
+class ApiDefinitionController @Inject() (service: ApiDefinitionService, override val config: ServiceConfiguration) extends BaseController with AuthWrapper {
 
-  def fetchApiDefinitions = Action.async { implicit request =>
+  def fetchApiDefinitions = ifAuthorised { implicit request =>
     service.fetchApiDefinitions(emailQueryParameter(request)) map {
       definitions => Ok(Json.toJson(definitions))
     }
   }
 
-  def fetchApiDefinition(serviceName: String) = Action.async { implicit request =>
+  def fetchApiDefinition(serviceName: String) = ifAuthorised { implicit request =>
     service.fetchApiDefinition(serviceName, emailQueryParameter(request)) map {
       case Some(definition) => Ok(Json.toJson(definition))
       case _ => NotFound
     }
   }
 
-  private def emailQueryParameter(request: Request[AnyContent]) = request.queryString.get("email").flatMap(_.headOption)
+  private def emailQueryParameter(request: Request[_]) = request.queryString.get("email").flatMap(_.headOption)
 }

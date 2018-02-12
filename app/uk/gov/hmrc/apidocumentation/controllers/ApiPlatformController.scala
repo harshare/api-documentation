@@ -20,29 +20,29 @@ import javax.inject.Inject
 
 import controllers.AssetsBuilder
 import play.api.http.HttpErrorHandler
-import play.api.mvc.Action
 import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
 import uk.gov.hmrc.apidocumentation.models.ApiAccess
-import uk.gov.hmrc.apidocumentation.models.ApiDefinition._
-import uk.gov.hmrc.play.bootstrap.controller.BaseController
 import uk.gov.hmrc.apidocumentation.views.txt
+import uk.gov.hmrc.play.bootstrap.controller.BaseController
 
-class ApiPlatformController  @Inject()(httpErrorHandler: HttpErrorHandler, config: ServiceConfiguration)
-  extends AssetsBuilder(httpErrorHandler) with BaseController {
+import scala.concurrent.Future
 
-  def definition = Action {
+class ApiPlatformController  @Inject()(httpErrorHandler: HttpErrorHandler, override val config: ServiceConfiguration)
+  extends AssetsBuilder(httpErrorHandler) with BaseController with AuthWrapper {
+
+  def definition = ifAuthorised { implicit request =>
     if(config.publishApiDefinition) {
-      Ok(txt.definition(config.apiContext, ApiAccess.build(config.access))).withHeaders(CONTENT_TYPE -> JSON)
+      Future.successful(Ok(txt.definition(config.apiContext, ApiAccess.build(config.access))).withHeaders(CONTENT_TYPE -> JSON))
     } else {
-      NotFound
+      Future.successful(NotFound)
     }
   }
 
-  def raml(version: String, file: String) = Action {
+  def raml(version: String, file: String) = ifAuthorised { implicit request =>
     if(config.publishApiDefinition) {
-      Ok(txt.application(config.apiContext))
+      Future.successful(Ok(txt.application(config.apiContext)))
     } else {
-      NotFound
+      Future.successful(NotFound)
     }
   }
 }
