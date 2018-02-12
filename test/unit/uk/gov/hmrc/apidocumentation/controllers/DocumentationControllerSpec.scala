@@ -20,11 +20,12 @@ import org.mockito.ArgumentMatchers.{any, anyString, eq => eqTo}
 import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
+import play.api.http.HeaderNames
 import play.api.http.HeaderNames.CONTENT_TYPE
 import play.api.http.Status._
 import play.api.mvc.Results
 import play.api.test.FakeRequest
-import uk.gov.hmrc.apidocumentation.models.DocumentationResource
+import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
 import uk.gov.hmrc.apidocumentation.services.DocumentationService
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
@@ -33,20 +34,20 @@ import scala.concurrent.Future
 
 class DocumentationControllerSpec  extends UnitSpec with ScalaFutures with MockitoSugar with WithFakeApplication {
 
-  trait Setup {
+  trait Setup extends AuthChecking {
     implicit val mat = fakeApplication.materializer
     val request = FakeRequest()
     val documentationService = mock[DocumentationService]
-    val hc = new HeaderCarrier()
+    val hc = HeaderCarrier()
     val serviceName = "api-example-microservice"
     val version = "1.0"
     val resourceName = "application.raml"
     val body = "RAML doc content"
     val contentType = "application/text"
 
-    val underTest = new DocumentationController(documentationService)
+    val underTest = new DocumentationController(documentationService, mockConfig)
 
-    def theServiceWillReturnTheResource(): Any = {
+    def theServiceWillReturnTheResource = {
       when(documentationService.fetchApiDocumentationResource(anyString, anyString, anyString)(any[HeaderCarrier]))
         .thenReturn(Future.successful(Results.Ok(body).withHeaders(CONTENT_TYPE -> contentType)))
     }
@@ -60,7 +61,8 @@ class DocumentationControllerSpec  extends UnitSpec with ScalaFutures with Mocki
   "DocumentationController" should {
 
     "call the service to get the resource" in new Setup {
-      theServiceWillReturnTheResource()
+      authorisationIsNotRequired
+      theServiceWillReturnTheResource
 
       await(underTest.fetchApiDocumentationResource(serviceName, version, resourceName)(request))
 
@@ -68,7 +70,8 @@ class DocumentationControllerSpec  extends UnitSpec with ScalaFutures with Mocki
     }
 
     "return the resource with a Content-type header when the content type is known" in new Setup {
-      theServiceWillReturnTheResource()
+      authorisationIsNotRequired
+      theServiceWillReturnTheResource
 
       val result = await(underTest.fetchApiDocumentationResource(serviceName, version, resourceName)(request))
 
@@ -78,7 +81,8 @@ class DocumentationControllerSpec  extends UnitSpec with ScalaFutures with Mocki
     }
 
     "return the resource with no Content-type header when the content type is unknown" in new Setup {
-      theServiceWillReturnTheResource()
+      authorisationIsNotRequired
+      theServiceWillReturnTheResource
 
       val result = await(underTest.fetchApiDocumentationResource(serviceName, version, resourceName)(request))
 
@@ -87,11 +91,36 @@ class DocumentationControllerSpec  extends UnitSpec with ScalaFutures with Mocki
     }
 
     "fail when the service fails to return the resource" in new Setup {
+      authorisationIsNotRequired
       theServiceWillFailToReturnTheResource
 
       intercept[RuntimeException] {
         await(underTest.fetchApiDocumentationResource(serviceName, version, resourceName)(request))
       }
+    }
+
+    "return Unauthorised when authorisation is required and no Authorization header is present" in new Setup {
+      authorisationIsRequired
+
+      val result = await(underTest.fetchApiDocumentationResource(serviceName, version, resourceName)(request))
+      status(result) shouldBe UNAUTHORIZED
+    }
+
+    "return Unauthorised when authorisation is required and an Authorization header is present with the wrong value" in new Setup {
+      authorisationIsRequired
+
+      val requestWithAuthHeader = request.withHeaders(HeaderNames.AUTHORIZATION -> invalidAuthorizationHeaderValue)
+      val result = await(underTest.fetchApiDocumentationResource(serviceName, version, resourceName)(requestWithAuthHeader))
+      status(result) shouldBe UNAUTHORIZED
+    }
+
+    "allow the request when authorisation is required and an Authorization header is present with the correct value" in new Setup {
+      authorisationIsRequired
+      theServiceWillReturnTheResource
+
+      val requestWithAuthHeader = request.withHeaders(HeaderNames.AUTHORIZATION -> validAuthorizationHeaderValue)
+      val result = await(underTest.fetchApiDocumentationResource(serviceName, version, resourceName)(requestWithAuthHeader))
+      status(result) shouldBe OK
     }
   }
 }
