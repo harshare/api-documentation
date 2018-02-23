@@ -80,6 +80,6 @@ def oneForkedJvmPerTest(tests: Seq[TestDefinition]) =
   }
 
 // Coverage configuration
-coverageMinimum := 90
+coverageMinimum := 95
 coverageFailOnMinimum := true
 coverageExcludedPackages := "<empty>;com.kenshoo.play.metrics.*;.*definition.*;prod.*;testOnlyDoNotUseInAppConf.*;app.*;uk.gov.hmrc.BuildInfo;uk.gov.hmrc.apidocumentation.config.*;uk.gov.hmrc.apidocumentation.models.*;uk.gov.hmrc.apidocumentation.EnumJson.*"
