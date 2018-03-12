@@ -102,16 +102,16 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
       verifyZeroInteractions(mockApiDocumentationConnector)
     }
 
-    "return the resource fetched from local microservice when the API version exists in sandbox and production" in new Setup {
+    "return the resource fetched from remote API documentation service when the API version exists in sandbox and production" in new Setup {
       theApiDefinitionWillBeReturned
-      theApiMicroserviceWillReturnTheResource(streamedResource)
+      theApiDocumentationServiceWillReturnTheResource(streamedResource)
 
       val result = await(underTest.fetchApiDocumentationResource(serviceName, "2.0", "resource")(hc))
 
       result.header.status should be(200)
       verify(mockApiDefinitionService).fetchApiDefinition(eqTo(serviceName), any[Option[String]])(any[HeaderCarrier])
-      verify(mockApiMicroserviceConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("2.0"), eqTo("resource"))(any[HeaderCarrier])
-      verifyZeroInteractions(mockApiDocumentationConnector)
+      verify(mockApiDocumentationConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("2.0"), eqTo("resource"))(any[HeaderCarrier])
+      verifyZeroInteractions(mockApiMicroserviceConnector)
     }
 
     "return the resource fetched from remote API documentation service when the API version exists in sandbox only" in new Setup {

@@ -49,14 +49,12 @@ class DocumentationService @Inject()(apiDefinitionService: ApiDefinitionService,
     }
 
     def fetchResource(apiVersion: ExtendedApiVersion): Future[StreamedResponse] = {
-      if(config.isSandbox) {
-        apiMicroserviceConnector.fetchApiDocumentationResource(serviceName, version, resource)
-      } else {
-        apiVersion.productionAvailability.fold {
-          apiDocumentationConnector.fetchApiDocumentationResource(serviceName, version, resource)
-        } { _ =>
-          apiMicroserviceConnector.fetchApiDocumentationResource(serviceName, version, resource)
-        }
+
+      lazy val futureLocalResource = apiMicroserviceConnector.fetchApiDocumentationResource(serviceName, version, resource)
+      lazy val futureRemoteResource = apiDocumentationConnector.fetchApiDocumentationResource(serviceName, version, resource)
+
+      if(config.isSandbox) futureLocalResource else {
+        apiVersion.sandboxAvailability.fold(futureLocalResource)( _ => futureRemoteResource)
       }
     }
 
