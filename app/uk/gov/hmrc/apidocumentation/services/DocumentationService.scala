@@ -52,10 +52,10 @@ class DocumentationService @Inject()(apiDefinitionService: ApiDefinitionService,
       if(config.isSandbox) {
         apiMicroserviceConnector.fetchApiDocumentationResource(serviceName, version, resource)
       } else {
-        apiVersion.productionAvailability.fold {
-          apiDocumentationConnector.fetchApiDocumentationResource(serviceName, version, resource)
-        } { _ =>
+        apiVersion.sandboxAvailability.fold {
           apiMicroserviceConnector.fetchApiDocumentationResource(serviceName, version, resource)
+        } { _ =>
+          apiDocumentationConnector.fetchApiDocumentationResource(serviceName, version, resource)
         }
       }
     }
