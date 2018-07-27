@@ -23,7 +23,7 @@ import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.client.WireMock._
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import org.mockito.Mockito.when
-import org.scalatest.BeforeAndAfterEach
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
@@ -33,7 +33,7 @@ import uk.gov.hmrc.apidocumentation.utils.TestHttpClient
 import uk.gov.hmrc.http.{HeaderCarrier, Upstream5xxResponse}
 import uk.gov.hmrc.play.test.UnitSpec
 
-class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeAndAfterEach with GuiceOneAppPerSuite with MockitoSugar {
+class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeAndAfterEach with BeforeAndAfterAll with GuiceOneAppPerSuite with MockitoSugar {
 
   val apiDefinitionPort = sys.env.getOrElse("WIREMOCK", "11114").toInt
   var apiDefinitionHost = "localhost"
@@ -51,13 +51,20 @@ class ApiDefinitionConnectorSpec extends UnitSpec with ScalaFutures with BeforeA
     val connector = new ApiDefinitionConnector(new TestHttpClient(), serviceConfiguration)
   }
 
-  override def beforeEach() {
+  override def beforeAll() {
     wireMockServer.start()
     WireMock.configureFor(apiDefinitionHost, apiDefinitionPort)
+    super.beforeAll()
   }
 
   override def afterEach() {
+    wireMockServer.resetAll()
+    super.afterEach()
+  }
+
+  override def afterAll() {
     wireMockServer.stop()
+    super.afterAll()
   }
 
   "fetchApiDefinition" should {

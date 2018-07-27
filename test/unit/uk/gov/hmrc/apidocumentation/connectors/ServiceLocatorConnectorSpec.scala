@@ -21,7 +21,7 @@ import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.client.WireMock._
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import org.mockito.Mockito._
-import org.scalatest.BeforeAndAfterEach
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
@@ -30,7 +30,7 @@ import uk.gov.hmrc.apidocumentation.utils.TestHttpClient
 import uk.gov.hmrc.http.{HeaderCarrier, NotFoundException, Upstream5xxResponse}
 import uk.gov.hmrc.play.test.UnitSpec
 
-class ServiceLocatorConnectorSpec extends UnitSpec with ScalaFutures with BeforeAndAfterEach with GuiceOneAppPerSuite with MockitoSugar {
+class ServiceLocatorConnectorSpec extends UnitSpec with ScalaFutures with BeforeAndAfterEach with BeforeAndAfterAll with GuiceOneAppPerSuite with MockitoSugar {
 
   val serviceLocatorPort = sys.env.getOrElse("WIREMOCK", "11112").toInt
   var serviceLocatorHost = "localhost"
@@ -45,13 +45,20 @@ class ServiceLocatorConnectorSpec extends UnitSpec with ScalaFutures with Before
     val connector = new ServiceLocatorConnector(new TestHttpClient(), serviceConfiguration)
   }
 
-  override def beforeEach() {
+  override def beforeAll() {
     wireMockServer.start()
     WireMock.configureFor(serviceLocatorHost, serviceLocatorPort)
+    super.beforeAll()
   }
 
-  override def afterEach() {
+  override def afterEach(): Unit = {
+    wireMockServer.resetAll()
+    super.afterEach()
+  }
+
+  override def afterAll() {
     wireMockServer.stop()
+    super.afterAll()
   }
 
   "lookupService" should {
