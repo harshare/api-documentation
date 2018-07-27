@@ -12,13 +12,12 @@ import uk.gov.hmrc.versioning.SbtGitVersioning
 import _root_.play.sbt.routes.RoutesKeys.routesGenerator
 
 lazy val appName = "api-documentation"
-lazy val appVersion = envOrElse("API_DOCUMENTATION_VERSION", "999-SNAPSHOT")
 
 lazy val appDependencies: Seq[ModuleID] = compile ++ test
 
 lazy val compile = Seq(
   ws,
-  "uk.gov.hmrc" %% "bootstrap-play-25" % "1.5.0"
+  "uk.gov.hmrc" %% "bootstrap-play-25" % "1.7.0"
 )
 
 lazy val scope: String = "test, it"
@@ -39,11 +38,12 @@ lazy val plugins: Seq[Plugins] = Seq.empty
 lazy val playSettings: Seq[Setting[_]] = Seq.empty
 
 lazy val microservice = (project in file("."))
-  .enablePlugins(Seq(_root_.play.sbt.PlayScala, SbtAutoBuildPlugin, SbtGitVersioning, SbtDistributablesPlugin) ++ plugins: _*)
+  .enablePlugins(Seq(_root_.play.sbt.PlayScala, SbtAutoBuildPlugin, SbtGitVersioning, SbtDistributablesPlugin, SbtArtifactory) ++ plugins: _*)
   .settings(playSettings: _*)
   .settings(scalaSettings: _*)
   .settings(publishingSettings: _*)
   .settings(defaultSettings(): _*)
+  .settings( majorVersion := 0 )
   .settings(unmanagedResourceDirectories in Compile += baseDirectory.value / "resources")
   .settings(
     name := appName,
