@@ -17,7 +17,6 @@
 package uk.gov.hmrc.apidocumentation.services
 
 import javax.inject.Inject
-
 import play.api.http.HttpEntity
 import play.api.http.Status._
 import play.api.libs.ws.StreamedResponse
@@ -50,11 +49,19 @@ class DocumentationService @Inject()(apiDefinitionService: ApiDefinitionService,
 
     def fetchResource(apiVersion: ExtendedApiVersion): Future[StreamedResponse] = {
 
-      lazy val futureLocalResource = apiMicroserviceConnector.fetchApiDocumentationResource(serviceName, version, resource)
-      lazy val futureRemoteResource = apiDocumentationConnector.fetchApiDocumentationResource(serviceName, version, resource)
+      lazy val fetchLocalResource = apiMicroserviceConnector.fetchApiDocumentationResource(serviceName, version, resource)
 
-      if(config.isSandbox) futureLocalResource else {
-        apiVersion.sandboxAvailability.fold(futureLocalResource)( _ => futureRemoteResource)
+      def fetchRemoteOrLocalResource: Future[StreamedResponse] = {
+        apiDocumentationConnector.fetchApiDocumentationResource(serviceName, version, resource).flatMap { resp =>
+          resp.headers.status match {
+            case OK => Future.successful(resp)
+            case _ => throw new NotFoundException("Resource not found - fallback required")
+          }
+        }.recoverWith { case _ => fetchLocalResource }
+      }
+
+      if (config.isSandbox) fetchLocalResource else {
+        apiVersion.sandboxAvailability.fold(fetchLocalResource)(_ => fetchRemoteOrLocalResource)
       }
     }
 
@@ -62,7 +69,7 @@ class DocumentationService @Inject()(apiDefinitionService: ApiDefinitionService,
       apiVersion <- fetchApiVersion
       streamedResponse <- fetchResource(apiVersion)
     } yield streamedResponse.headers.status match {
-      case OK => {
+      case OK =>
         val contentType = streamedResponse.headers.headers.get("Content-Type").flatMap(_.headOption)
           .getOrElse("application/octet-stream")
 
@@ -70,7 +77,6 @@ class DocumentationService @Inject()(apiDefinitionService: ApiDefinitionService,
           case Some(Seq(length)) => Ok.sendEntity(HttpEntity.Streamed(streamedResponse.body, Some(length.toLong), Some(contentType)))
           case _ => Ok.chunked(streamedResponse.body).as(contentType)
         }
-      }
       case NOT_FOUND => throw new NotFoundException(s"$resource not found for $serviceName $version")
       case _ => throw new InternalServerException(s"Error downloading $resource for $serviceName $version")
     }
