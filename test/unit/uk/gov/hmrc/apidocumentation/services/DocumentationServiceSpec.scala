@@ -205,11 +205,12 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
     "fail when resource not found from API Documentation service when in production only" in new Setup {
       theApiDefinitionWillBeReturned
-      theApiDocumentationServiceWillReturnTheResource(notFoundResource)
+      theApiMicroserviceWillReturnTheResource(notFoundResource)
 
       intercept[NotFoundException] {
         await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resourceNotThere")(hc))
       }
+      verifyZeroInteractions(mockApiDocumentationConnector)
     }
 
     "fail when resource not found from local API microservice" in new Setup {
@@ -223,11 +224,12 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
     "fail when API Documentation service returns an internal server error when in production only" in new Setup {
       theApiDefinitionWillBeReturned
-      theApiDocumentationServiceWillReturnTheResource(internalServerErrorResource)
+      theApiMicroserviceWillReturnTheResource(internalServerErrorResource)
 
       intercept[InternalServerException] {
         await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resourceNotThere")(hc))
       }
+      verifyZeroInteractions(mockApiDocumentationConnector)
     }
 
     "fail when local API microservice returns an internal server error" in new Setup {
