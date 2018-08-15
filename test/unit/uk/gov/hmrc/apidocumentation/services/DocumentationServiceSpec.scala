@@ -86,6 +86,11 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
       when(mockApiDocumentationConnector.fetchApiDocumentationResource(anyString, anyString, anyString)(any[HeaderCarrier]))
         .thenReturn(Future.successful(response))
     }
+
+    def theApiDocumentationServiceWillFail() = {
+      when(mockApiDocumentationConnector.fetchApiDocumentationResource(anyString, anyString, anyString)(any[HeaderCarrier]))
+        .thenReturn(Future.failed(new RuntimeException))
+    }
   }
 
   "DocumentationService" should {
@@ -96,7 +101,7 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
       val result = await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resource")(hc))
 
-      result.header.status should be(200)
+      result.header.status should be(Status.OK)
       verify(mockApiDefinitionService).fetchApiDefinition(eqTo(serviceName), any[Option[String]])(any[HeaderCarrier])
       verify(mockApiMicroserviceConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("1.0"), eqTo("resource"))(any[HeaderCarrier])
       verifyZeroInteractions(mockApiDocumentationConnector)
@@ -108,10 +113,49 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
       val result = await(underTest.fetchApiDocumentationResource(serviceName, "2.0", "resource")(hc))
 
-      result.header.status should be(200)
+      result.header.status should be(Status.OK)
       verify(mockApiDefinitionService).fetchApiDefinition(eqTo(serviceName), any[Option[String]])(any[HeaderCarrier])
       verify(mockApiDocumentationConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("2.0"), eqTo("resource"))(any[HeaderCarrier])
       verifyZeroInteractions(mockApiMicroserviceConnector)
+    }
+
+    "return the resource fetched from local API documentation service when the API version exists in sandbox and production but remote service returns not found" in new Setup {
+      theApiDefinitionWillBeReturned
+      theApiDocumentationServiceWillReturnTheResource(notFoundResource)
+      theApiMicroserviceWillReturnTheResource(streamedResource)
+
+      val result = await(underTest.fetchApiDocumentationResource(serviceName, "2.0", "resource")(hc))
+
+      result.header.status should be(Status.OK)
+      verify(mockApiDefinitionService).fetchApiDefinition(eqTo(serviceName), any[Option[String]])(any[HeaderCarrier])
+      verify(mockApiDocumentationConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("2.0"), eqTo("resource"))(any[HeaderCarrier])
+      verify(mockApiMicroserviceConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("2.0"), eqTo("resource"))(any[HeaderCarrier])
+    }
+
+    "return the resource fetched from local API documentation service when the API version exists in sandbox and production but remote service returns error" in new Setup {
+      theApiDefinitionWillBeReturned
+      theApiDocumentationServiceWillReturnTheResource(internalServerErrorResource)
+      theApiMicroserviceWillReturnTheResource(streamedResource)
+
+      val result = await(underTest.fetchApiDocumentationResource(serviceName, "2.0", "resource")(hc))
+
+      result.header.status should be(Status.OK)
+      verify(mockApiDefinitionService).fetchApiDefinition(eqTo(serviceName), any[Option[String]])(any[HeaderCarrier])
+      verify(mockApiDocumentationConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("2.0"), eqTo("resource"))(any[HeaderCarrier])
+      verify(mockApiMicroserviceConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("2.0"), eqTo("resource"))(any[HeaderCarrier])
+    }
+
+    "return the resource fetched from local API documentation service when the API version exists in sandbox and production but remote service fails" in new Setup {
+      theApiDefinitionWillBeReturned
+      theApiDocumentationServiceWillFail()
+      theApiMicroserviceWillReturnTheResource(streamedResource)
+
+      val result = await(underTest.fetchApiDocumentationResource(serviceName, "2.0", "resource")(hc))
+
+      result.header.status should be(Status.OK)
+      verify(mockApiDefinitionService).fetchApiDefinition(eqTo(serviceName), any[Option[String]])(any[HeaderCarrier])
+      verify(mockApiDocumentationConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("2.0"), eqTo("resource"))(any[HeaderCarrier])
+      verify(mockApiMicroserviceConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("2.0"), eqTo("resource"))(any[HeaderCarrier])
     }
 
     "return the resource fetched from remote API documentation service when the API version exists in sandbox only" in new Setup {
@@ -120,7 +164,7 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
       val result = await(underTest.fetchApiDocumentationResource(serviceName, "3.0", "resource")(hc))
 
-      result.header.status should be(200)
+      result.header.status should be(Status.OK)
       verify(mockApiDefinitionService).fetchApiDefinition(eqTo(serviceName), any[Option[String]])(any[HeaderCarrier])
       verify(mockApiDocumentationConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("3.0"), eqTo("resource"))(any[HeaderCarrier])
       verifyZeroInteractions(mockApiMicroserviceConnector)
@@ -133,7 +177,7 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
       val result = await(underTest.fetchApiDocumentationResource(serviceName, "3.0", "resource")(hc))
 
-      result.header.status should be(200)
+      result.header.status should be(Status.OK)
       verify(mockApiDefinitionService).fetchApiDefinition(eqTo(serviceName), any[Option[String]])(any[HeaderCarrier])
       verify(mockApiMicroserviceConnector).fetchApiDocumentationResource(eqTo(serviceName), eqTo("3.0"), eqTo("resource"))(any[HeaderCarrier])
       verifyZeroInteractions(mockApiDocumentationConnector)
@@ -145,7 +189,7 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
       val result = await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resource")(hc))
 
-      result.header.status should be(200)
+      result.header.status should be(Status.OK)
       result.body.contentType should be(Some("application/text"))
     }
 
@@ -155,17 +199,18 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
 
       val result = await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resource")(hc))
 
-      result.header.status should be(200)
+      result.header.status should be(Status.OK)
       result.body.contentType should be(Some("application/octet-stream"))
     }
 
-    "fail when resource not found from API Documentation service" in new Setup {
+    "fail when resource not found from API Documentation service when in production only" in new Setup {
       theApiDefinitionWillBeReturned
-      theApiDocumentationServiceWillReturnTheResource(notFoundResource)
+      theApiMicroserviceWillReturnTheResource(notFoundResource)
 
       intercept[NotFoundException] {
-        await(underTest.fetchApiDocumentationResource(serviceName, "3.0", "resourceNotThere")(hc))
+        await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resourceNotThere")(hc))
       }
+      verifyZeroInteractions(mockApiDocumentationConnector)
     }
 
     "fail when resource not found from local API microservice" in new Setup {
@@ -177,13 +222,14 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
       }
     }
 
-    "fail when API Documentation service returns an internal server error" in new Setup {
+    "fail when API Documentation service returns an internal server error when in production only" in new Setup {
       theApiDefinitionWillBeReturned
-      theApiDocumentationServiceWillReturnTheResource(internalServerErrorResource)
+      theApiMicroserviceWillReturnTheResource(internalServerErrorResource)
 
       intercept[InternalServerException] {
-        await(underTest.fetchApiDocumentationResource(serviceName, "3.0", "resourceNotThere")(hc))
+        await(underTest.fetchApiDocumentationResource(serviceName, "1.0", "resourceNotThere")(hc))
       }
+      verifyZeroInteractions(mockApiDocumentationConnector)
     }
 
     "fail when local API microservice returns an internal server error" in new Setup {
