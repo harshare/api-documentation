@@ -157,9 +157,9 @@ class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with Befo
 
       val result = await(connector.fetchApiDefinition(serviceName))
       result.get.name shouldBe "Calendar"
-      result.get.versions should have size 2
+      result.get.versions should have size 3
       result.get.versions map (_.productionAvailability.map(_.access)) shouldBe
-        Seq(Some(ApiAccess(ApiAccessType.PUBLIC, None)), Some(ApiAccess(ApiAccessType.PRIVATE, Some(Seq("app-id-1", "app-id-2")))))
+        Seq(Some(ApiAccess(ApiAccessType.PUBLIC, None)), Some(ApiAccess(ApiAccessType.PRIVATE, Some(Seq("app-id-1", "app-id-2")))), Some(ApiAccess(ApiAccessType.PRIVATE, Some(Seq.empty), Some(true))))
     }
 
     "return a fetched API Definition when queried by email" in new Setup {
@@ -169,9 +169,9 @@ class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with Befo
 
       val result = await(connector.fetchApiDefinition(serviceName, Some(loggedInUserEmail)))
       result.get.name shouldBe "Calendar"
-      result.get.versions should have size 2
+      result.get.versions should have size 3
       result.get.versions map (_.productionAvailability.map(_.access)) shouldBe
-        Seq(Some(ApiAccess(ApiAccessType.PUBLIC, None)), Some(ApiAccess(ApiAccessType.PRIVATE, Some(Seq("app-id-1", "app-id-2")))))
+        Seq(Some(ApiAccess(ApiAccessType.PUBLIC, None)), Some(ApiAccess(ApiAccessType.PRIVATE, Some(Seq("app-id-1", "app-id-2")))), Some(ApiAccess(ApiAccessType.PRIVATE, Some(Seq.empty), Some(true))))
     }
 
     "return None if the remote service responds with an error" in new Setup {
@@ -278,6 +278,30 @@ class ApiDocumentationConnectorSpec extends UnitSpec with ScalaFutures with Befo
        |        "access" : {
        |          "type" : "PRIVATE",
        |          "whitelistedApplicationIds" : ["app-id-1","app-id-2"]
+       |        },
+       |        "loggedIn": false,
+       |        "authorised": true
+       |      }
+       |    },
+       |    {
+       |      "version" : "2.5",
+       |      "status" : "BETA",
+       |      "endpoints" : [
+       |        {
+       |          "uriPattern" : "/hello",
+       |          "endpointName" : "Say Hello Privately",
+       |          "method" : "GET",
+       |          "authType" : "NONE",
+       |          "throttlingTier" : "UNLIMITED",
+       |          "scope": "read:hello"
+       |        }
+       |      ],
+       |      "productionAvailability": {
+       |        "endpointsEnabled": true,
+       |        "access" : {
+       |          "type" : "PRIVATE",
+       |          "whitelistedApplicationIds" : [],
+       |          "isTrial": true
        |        },
        |        "loggedIn": false,
        |        "authorised": true

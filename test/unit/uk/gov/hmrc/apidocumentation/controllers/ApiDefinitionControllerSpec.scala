@@ -21,14 +21,13 @@ import org.mockito.Mockito._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar
 import play.api.http.HeaderNames
+import play.api.http.Status._
+import play.api.libs.json.Json
 import play.api.test.FakeRequest
 import uk.gov.hmrc.apidocumentation.models.{ApiAccess, ApiAccessType, ApiAvailability, ApiDefinition, ApiStatus, ExtendedApiDefinition, ExtendedApiVersion}
 import uk.gov.hmrc.apidocumentation.services.ApiDefinitionService
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.test.{UnitSpec, WithFakeApplication}
-import play.api.http.Status._
-import play.api.libs.json.Json
-import uk.gov.hmrc.apidocumentation.config.ServiceConfiguration
 
 import scala.concurrent.Future
 

@@ -25,12 +25,13 @@ object ApiAccessType extends Enumeration {
   val PRIVATE, PUBLIC = Value
 }
 
-case class ApiAccess(`type`: ApiAccessType.Value, whitelistedApplicationIds: Option[Seq[String]])
+case class ApiAccess(`type`: ApiAccessType.Value, whitelistedApplicationIds: Option[Seq[String]], isTrial: Option[Boolean] = None)
 
 object ApiAccess {
   def build(config: Option[Configuration]): ApiAccess = ApiAccess(
     `type` = ApiAccessType.PRIVATE,
-    whitelistedApplicationIds = config.flatMap(_.getStringSeq("whitelistedApplicationIds")).orElse(Some(Seq.empty)))
+    whitelistedApplicationIds = config.flatMap(_.getStringSeq("whitelistedApplicationIds")).orElse(Some(Seq.empty)),
+    isTrial = None)
 }
 object ApiStatus extends Enumeration {
   type ApiStatus = Value
