@@ -40,7 +40,7 @@ class DocumentationServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
   val productionV2Availability = ApiAvailability(endpointsEnabled = true, ApiAccess(ApiAccessType.PRIVATE, Some(Seq.empty)), loggedIn = false, authorised = false)
   val sandboxV2Availability = ApiAvailability(endpointsEnabled = true, ApiAccess(ApiAccessType.PUBLIC, Some(Seq.empty)), loggedIn = false, authorised = false)
   val sandboxV3Availability = ApiAvailability(endpointsEnabled = false, ApiAccess(ApiAccessType.PUBLIC, Some(Seq.empty)), loggedIn = false, authorised = false)
-  val apiDefinition = ExtendedApiDefinition(serviceName, "http://hello.protected.mdtp", "Hello World", "Example", "hello",
+  val apiDefinition = ExtendedApiDefinition(serviceName, "http://localhost", "Hello World", "Example", "hello",
     requiresTrust = false, isTestSupport = false, Seq(
       ExtendedApiVersion("1.0", ApiStatus.STABLE, Seq.empty, Some(productionV1Availability), None),
       ExtendedApiVersion("2.0", ApiStatus.BETA, Seq.empty, Some(productionV2Availability), Some(sandboxV2Availability)),
