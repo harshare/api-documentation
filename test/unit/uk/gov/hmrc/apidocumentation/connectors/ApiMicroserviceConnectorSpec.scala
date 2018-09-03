@@ -32,7 +32,7 @@ import scala.concurrent.Future
 
 class ApiMicroserviceConnectorSpec extends UnitSpec with MockitoSugar {
 
-  val serviceUrl = "http://api-example-microservice.protected.mdtp"
+  val serviceUrl = "http://localhost"
 
   val serviceName = "hello-world"
   val version = "1.0"

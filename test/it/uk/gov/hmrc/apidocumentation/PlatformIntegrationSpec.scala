@@ -57,7 +57,7 @@ trait PlatformIntegrationSpec extends UnitSpec with MockitoSugar with ScalaFutur
     .configure("run.mode" -> "Stub")
     .configure(Map(
       "appName" -> "application-name",
-      "appUrl" -> "http://microservice-name.protected.mdtp",
+      "appUrl" -> "http://localhost",
       "publishApiDefinition" -> publishApiDefinition,
       "api.context" -> "test-api-context",
       "Test.microservice.services.service-locator.host" -> stubHost,

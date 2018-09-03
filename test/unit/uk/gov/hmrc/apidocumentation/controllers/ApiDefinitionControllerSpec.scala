@@ -41,7 +41,7 @@ class ApiDefinitionControllerSpec extends UnitSpec with ScalaFutures with Mockit
       ApiDefinition(serviceName, "Hello World", "Example", "hello", None, None, Seq.empty),
       ApiDefinition("api-example-person", "Hello Person", "Example", "hello-person", None, None, Seq.empty)
     )
-    val apiDefinition = ExtendedApiDefinition(serviceName, "http://hello.protected.mdtp", "Hello World", "Example", "hello",
+    val apiDefinition = ExtendedApiDefinition(serviceName, "http://localhost", "Hello World", "Example", "hello",
       requiresTrust = false, isTestSupport = false, Seq(ExtendedApiVersion("1.0", ApiStatus.ALPHA, Seq.empty,
         Some(ApiAvailability(endpointsEnabled = true, ApiAccess(ApiAccessType.PUBLIC, None), loggedIn = false, authorised = false)), None)))
 

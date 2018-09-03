@@ -44,18 +44,18 @@ class ApiDefinitionServiceSpec extends UnitSpec with ScalaFutures with MockitoSu
     val sandboxV1Availability = ApiAvailability(endpointsEnabled = true, ApiAccess(ApiAccessType.PUBLIC, Some(Seq.empty)), loggedIn = false, authorised = false)
     val sandboxV2Availability = ApiAvailability(endpointsEnabled = false, ApiAccess(ApiAccessType.PUBLIC, Some(Seq.empty)), loggedIn = false, authorised = false)
 
-    val productionApiDefinition = ExtendedApiDefinition(serviceName, "http://hello.protected.mdtp", "Hello World", "Example", "hello",
+    val productionApiDefinition = ExtendedApiDefinition(serviceName, "http://localhost", "Hello World", "Example", "hello",
       requiresTrust = false, isTestSupport = false, Seq(
         ExtendedApiVersion("1.0", ApiStatus.STABLE, Seq.empty, Some(productionV1Availability), None)
       ))
 
-    val sandboxApiDefinition = ExtendedApiDefinition(serviceName, "http://hello.protected.mdtp", "Hello World", "Example", "hello",
+    val sandboxApiDefinition = ExtendedApiDefinition(serviceName, "http://localhost", "Hello World", "Example", "hello",
       requiresTrust = false, isTestSupport = false, Seq(
         ExtendedApiVersion("1.0", ApiStatus.STABLE, Seq.empty, None, Some(sandboxV1Availability)),
         ExtendedApiVersion("2.0", ApiStatus.ALPHA, Seq.empty, None, Some(sandboxV2Availability))
       ))
 
-    val combinedApiDefinition = ExtendedApiDefinition(serviceName, "http://hello.protected.mdtp", "Hello World", "Example", "hello",
+    val combinedApiDefinition = ExtendedApiDefinition(serviceName, "http://localhost", "Hello World", "Example", "hello",
       requiresTrust = false, isTestSupport = false, Seq(
         ExtendedApiVersion("1.0", ApiStatus.STABLE, Seq.empty, Some(productionV1Availability), Some(sandboxV1Availability)),
         ExtendedApiVersion("2.0", ApiStatus.ALPHA, Seq.empty, None, Some(sandboxV2Availability))
