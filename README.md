@@ -28,6 +28,6 @@ You can use Service Manager to run the service locally on port `9980`:
 * `sm --start API_DOCUMENTATION`
 
 You can also run the service locally in stub mode. In this mode it will connect to dependent services on 
-port `11111` - use either `api-services-stub` or `mocked-external-services-suite` to provide stubbed implementations.
+port `11111` - use `api-services-stub` to provide stubbed implementations.
 To run in stub mode on port `9980`:
 * `./run_in_stub_mode.sh`
