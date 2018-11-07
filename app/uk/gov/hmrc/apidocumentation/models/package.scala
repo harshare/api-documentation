@@ -46,6 +46,7 @@ package object EnumJson {
 package object models {
   implicit val formatServiceDetails = Json.format[ServiceDetails]
   implicit val formatHttpMethod = EnumJson.enumFormat(HttpMethod)
+  implicit val formatApiCategory = EnumJson.enumFormat(ApiCategory)
   implicit val formatApiStatus = EnumJson.enumFormat(ApiStatus)
   implicit val formatApiAccessType = EnumJson.enumFormat(ApiAccessType)
   implicit val formatApiAccess = Json.format[ApiAccess]
