@@ -17,6 +17,7 @@
 package uk.gov.hmrc.apidocumentation.models
 
 import play.api.Configuration
+import uk.gov.hmrc.apidocumentation.models.ApiCategory.ApiCategory
 import uk.gov.hmrc.apidocumentation.models.ApiStatus.ApiStatus
 import uk.gov.hmrc.apidocumentation.models.HttpMethod.HttpMethod
 
@@ -38,6 +39,13 @@ object ApiStatus extends Enumeration {
   val ALPHA, BETA, PROTOTYPED, PUBLISHED, STABLE, DEPRECATED, RETIRED = Value
 }
 
+object ApiCategory extends Enumeration {
+  type ApiCategory = Value
+
+  val EXAMPLE, AGENTS, CORPORATION_TAX, CUSTOMS, ESTATES, HELP_TO_SAVE, INCOME_TAX_MTD,
+    LIFETIME_ISA, MARRIAGE_ALLOWANCE, NATIONAL_INSURANCE, PAYE, PENSIONS, PRIVATE_GOVERNMENT,
+    RELIEF_AT_SOURCE, SELF_ASSESSMENT, STAMP_DUTY, TRUSTS, VAT, VAT_MTD, OTHER = Value
+}
 
 object HttpMethod extends Enumeration {
   type HttpMethod = Value
@@ -52,7 +60,8 @@ case class ApiDefinition(serviceName: String,
                          context: String,
                          requiresTrust: Option[Boolean],
                          isTestSupport: Option[Boolean],
-                         versions: Seq[ApiVersion]) {
+                         versions: Seq[ApiVersion],
+                         categories: Option[Seq[ApiCategory]] = None) {
   def isIn(definitions: Seq[ApiDefinition]): Boolean = {
     definitions.map(_.name).contains(name)
   }
