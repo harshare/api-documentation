@@ -56,7 +56,8 @@ lazy val microservice = (project in file("."))
   .settings(
     Keys.fork in Test := false,
     unmanagedSourceDirectories in Test <<= (baseDirectory in Test) (base => Seq(base / "test" / "unit")),
-    addTestReportOption(Test, "test-reports")
+    addTestReportOption(Test, "test-reports"),
+    testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-eT")
   )
   .configs(IntegrationTest)
   .settings(inConfig(IntegrationTest)(Defaults.itSettings): _*)
@@ -65,6 +66,7 @@ lazy val microservice = (project in file("."))
     unmanagedSourceDirectories in IntegrationTest <<= (baseDirectory in IntegrationTest) (base => Seq(base / "test" / "it")),
     addTestReportOption(IntegrationTest, "int-test-reports"),
     testGrouping in IntegrationTest := oneForkedJvmPerTest((definedTests in IntegrationTest).value),
+    testOptions in IntegrationTest += Tests.Argument(TestFrameworks.ScalaTest, "-eT"),
     parallelExecution in IntegrationTest := false,
     libraryDependencies ++= test
   )
