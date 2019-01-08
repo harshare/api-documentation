@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.apidocumentation.utils
 
+import akka.actor.ActorSystem
+import com.typesafe.config.Config
 import uk.gov.hmrc.play.audit.http.config.AuditingConfig
 import uk.gov.hmrc.play.audit.http.connector.AuditConnector
 import uk.gov.hmrc.play.bootstrap.http.HttpClient
@@ -23,8 +25,12 @@ import uk.gov.hmrc.play.http.ws.WSHttp
 
 class TestHttpClient extends HttpClient with WSHttp {
   override val hooks = Seq.empty
+
+  override protected def actorSystem: ActorSystem = ActorSystem("Test")
+
+  override protected def configuration: Option[Config] = None
 }
 
 class TestAuditConnector extends AuditConnector {
-  override def auditingConfig: AuditingConfig = AuditingConfig(None, false)
+  override def auditingConfig: AuditingConfig = AuditingConfig(None, false, "")
 }
