@@ -23,7 +23,7 @@ lazy val compile = Seq(
 lazy val scope: String = "test, it"
 
 lazy val test = Seq(
-  "uk.gov.hmrc" %% "hmrctest" % "3.0.0" % scope,
+  "uk.gov.hmrc" %% "hmrctest" % "3.3.0" % scope,
   "org.scalatest" %% "scalatest" % "3.0.1" % scope,
   "org.scalatestplus.play" %% "scalatestplus-play" % "2.0.0" % scope,
   "org.mockito" % "mockito-core" % "2.10.0" % scope,
